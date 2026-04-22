@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>Duel of Ages</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cinzel+Decorative:wght@700;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; user-select:none; font-family:'Cinzel',serif; }
@@ -22,7 +23,7 @@ canvas { display:block; border:3px solid #7a5c1a; }
   position:absolute; top:0; left:0; width:100%; height:100%;
   background:rgba(0,0,0,0.82);
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:0;
+  gap:0; padding:12px; overflow-y:auto;
 }
 .ts-title {
   font:900 68px 'Cinzel Decorative',serif; color:#f0d060;
@@ -60,11 +61,35 @@ canvas { display:block; border:3px solid #7a5c1a; }
   font:700 13px 'Cinzel',serif; color:#c08040; letter-spacing:3px;
   background:linear-gradient(160deg,#1a0e06,#2c1808,#1a0e06);
   border:2px solid #7a4010; padding:7px 28px; cursor:pointer;
-  margin-top:10px; text-transform:uppercase;
+  text-transform:uppercase;
   box-shadow:0 0 10px rgba(120,60,0,0.2);
   transition:all 0.18s;
 }
 #reset-btn:hover { border-color:#c06020; color:#e0a060; box-shadow:0 0 18px rgba(180,80,0,0.35); }
+.ts-or { color:#5a5030; font:400 13px 'Cinzel',serif; letter-spacing:3px; margin:22px 0 14px; }
+.ts-mp-row { display:flex; gap:18px; justify-content:center; }
+.mp-btn {
+  font:700 16px 'Cinzel',serif; color:#c0a050;
+  background:linear-gradient(160deg,#1a1008,#2c2010,#1a1008);
+  border:2px solid #7a6020; padding:10px 26px; cursor:pointer;
+  letter-spacing:3px; transition:all 0.18s;
+}
+.mp-btn:hover { border-color:#c0a030; color:#f0d070; box-shadow:0 0 18px rgba(180,140,0,0.3); }
+#mp-status {
+  color:#a09060; font:400 12px 'Cinzel',serif; letter-spacing:1px;
+  margin-top:16px; text-align:center; min-height:20px; max-width:440px;
+  line-height:1.7; word-break:break-all;
+}
+.mp-link { color:#80b8f0; cursor:pointer; text-decoration:underline; font-size:11px; }
+#bottom-controls { display:flex; gap:10px; align-items:center; margin-top:10px; justify-content:center; flex-wrap:wrap; }
+.ready-btn {
+  font:700 11px 'Cinzel',serif; color:#60c070; letter-spacing:2px;
+  background:linear-gradient(160deg,#061006,#0e1e0a,#061006);
+  border:2px solid #2a5a24; padding:7px 16px; cursor:pointer;
+  text-transform:uppercase; transition:all 0.18s;
+}
+.ready-btn:hover { border-color:#50a040; color:#80e090; box-shadow:0 0 14px rgba(60,160,50,0.3); }
+.ready-btn.active { border-color:#80e090; color:#c0ffc8; box-shadow:0 0 14px rgba(60,200,80,0.45); }
 #pose-info {
   display:none; position:absolute; bottom:6px; right:6px;
   background:rgba(0,0,0,0.88); border:1px solid #c8a020;
@@ -83,6 +108,12 @@ canvas { display:block; border:3px solid #7a5c1a; }
     <div class="ts-title">⚔ Duel of Ages ⚔</div>
     <div class="ts-sub">A Battle of Steel &amp; Honour</div>
     <button id="battle-btn">⚔ &nbsp; Battle! &nbsp; ⚔</button>
+    <div class="ts-or">— or —</div>
+    <div class="ts-mp-row">
+      <button id="host-btn" class="mp-btn">⚑ &nbsp; Host Game</button>
+      <button id="join-btn" class="mp-btn">⚐ &nbsp; Join Game</button>
+    </div>
+    <div id="mp-status"></div>
   </div>
 </div>
 <div id="hud">
@@ -90,7 +121,11 @@ canvas { display:block; border:3px solid #7a5c1a; }
   &nbsp;&nbsp;
   <span style="color:#f08080">P2:</span> Arrows move &bull; <b>P</b>/<b>L</b>/<b>.</b> attack Hi/Mid/Lo &bull; <b>[</b>/<b>;</b>/<b>/</b> block Hi/Mid/Lo &bull; <b>O</b> throw sword
 </div>
-<button id="reset-btn">&#9876; &nbsp; Reset Match &nbsp; &#9876;</button>
+<div id="bottom-controls">
+  <button id="p1-ready-btn" class="ready-btn" style="display:none">⚔ P1 Ready</button>
+  <button id="reset-btn">&#9876; &nbsp; Reset Match &nbsp; &#9876;</button>
+  <button id="p2-ready-btn" class="ready-btn" style="display:none">⚔ P2 Ready</button>
+</div>
 <div id="color-select">
   <div class="cs-player">
     <div class="cs-title">P1 &mdash; Armour</div>
@@ -2435,61 +2470,79 @@ function loop(ts) {
   phaseT += dt;
   pollGamepads();  // #22
 
-  if (phase === 'title') {
-    // Nothing to update — title screen overlay is HTML; just keep rendering bg + torches
-  } else if (phase === 'countdown') {
-    if (phaseT >= countdown + 0.5) { phase = 'fight'; phaseT = 0; }
-    // Countdown beep on each new number; Fight! fanfare when it hits 0
-    const cn = Math.ceil(countdown - phaseT);
-    if (cn > 0 && cn !== lastCountdownN) { sfxBeep(cn); lastCountdownN = cn; }
-    if (cn <= 0 && lastCountdownN !== 0) { sfxFight(); lastCountdownN = 0; }
-  } else if (phase === 'fight') {
-    k1.update(dt); k2.update(dt);
-    if (k1.x <= k2.x) { k1.facing=1; k2.facing=-1; }
-    else               { k1.facing=-1; k2.facing=1; }
-    processHits(k1, k2); processHits(k2, k1);
-    processSwordThrows(k1); processSwordThrows(k2);
-    if (k1.dead || k2.dead) {
-      if (k1.dead) p2Wins++; else p1Wins++;
-      phase  = (p1Wins >= 2 || p2Wins >= 2) ? 'game_over' : 'round_over';
-      phaseT = 0;
-      sfxVictory();
+  if (netMode === 'join') {
+    // Joiner: send keys to host every frame; apply latest received state
+    if (conn && conn.open) conn.send({type:'keys', keys:{...keys}});
+    if (lastReceivedState) { applyState(lastReceivedState); lastReceivedState = null; }
+    // Animate particles and swords locally between state receives for smooth visuals
+    for (let i = particles.length-1; i >= 0; i--) {
+      particles[i].update(dt);
+      if (particles[i].life <= 0) particles.splice(i, 1);
     }
-  } else if (phase === 'round_over') {
-    k1.update(dt); k2.update(dt); // let severed parts settle
-    if (phaseT > 1.2 && keys['Space']) { startRound(); }
-  } else if (phase === 'game_over') {
-    k1.update(dt); k2.update(dt);
-    if (phaseT > 1.2 && keys['Space']) {
-      p1Wins=0; p2Wins=0;
-      k1.severed.length = 0; k2.severed.length = 0;
-      flyingSwords.length = 0;
-      sfxTrumpet();
-      startRound();
-    }
-  }
-
-  // Update particles
-  for (let i = particles.length-1; i >= 0; i--) {
-    particles[i].update(dt);
-    if (particles[i].life <= 0) particles.splice(i, 1);
-  }
-
-  // Update flying swords
-  for (const sw of flyingSwords) sw.update(dt);
-
-  // #13 Decay screen shake
-  if (screenShake.timer > 0) {
-    screenShake.timer -= dt;
-    const t = Math.max(0, screenShake.timer);
-    screenShake.x = (Math.random()*2-1) * screenShake.mag * t;
-    screenShake.y = (Math.random()*2-1) * screenShake.mag * t;
+    for (const sw of flyingSwords) sw.update(dt);
   } else {
-    screenShake.x = 0; screenShake.y = 0;
-  }
+    // Host or local: run full simulation
+    if (netMode === 'host') {
+      // Replace k2 keys with joiner's remote input
+      for (const code of Object.values(CTRL2)) keys[code] = !!(remoteKeys && remoteKeys[code]);
+    }
 
-  // #19 Decay torch flicker
-  if (torchFlicker.timer > 0) torchFlicker.timer -= dt;
+    if (phase === 'title') {
+      // Nothing to update — title screen overlay is HTML; just keep rendering bg + torches
+    } else if (phase === 'countdown') {
+      if (phaseT >= countdown + 0.5) { phase = 'fight'; phaseT = 0; }
+      // Countdown beep on each new number; Fight! fanfare when it hits 0
+      const cn = Math.ceil(countdown - phaseT);
+      if (cn > 0 && cn !== lastCountdownN) { sfxBeep(cn); lastCountdownN = cn; }
+      if (cn <= 0 && lastCountdownN !== 0) { sfxFight(); lastCountdownN = 0; }
+    } else if (phase === 'fight') {
+      k1.update(dt); k2.update(dt);
+      if (k1.x <= k2.x) { k1.facing=1; k2.facing=-1; }
+      else               { k1.facing=-1; k2.facing=1; }
+      processHits(k1, k2); processHits(k2, k1);
+      processSwordThrows(k1); processSwordThrows(k2);
+      if (k1.dead || k2.dead) {
+        if (k1.dead) p2Wins++; else p1Wins++;
+        phase  = (p1Wins >= 2 || p2Wins >= 2) ? 'game_over' : 'round_over';
+        phaseT = 0;
+        sfxVictory();
+      }
+    } else if (phase === 'round_over') {
+      k1.update(dt); k2.update(dt); // let severed parts settle
+      if (phaseT > 1.2 && keys['Space']) { startRound(); }
+    } else if (phase === 'game_over') {
+      k1.update(dt); k2.update(dt);
+      if (phaseT > 1.2 && keys['Space']) {
+        p1Wins=0; p2Wins=0;
+        k1.severed.length = 0; k2.severed.length = 0;
+        flyingSwords.length = 0;
+        sfxTrumpet();
+        startRound();
+      }
+    }
+
+    // Update particles
+    for (let i = particles.length-1; i >= 0; i--) {
+      particles[i].update(dt);
+      if (particles[i].life <= 0) particles.splice(i, 1);
+    }
+
+    // Update flying swords
+    for (const sw of flyingSwords) sw.update(dt);
+
+    // #13 Decay screen shake
+    if (screenShake.timer > 0) {
+      screenShake.timer -= dt;
+      const t = Math.max(0, screenShake.timer);
+      screenShake.x = (Math.random()*2-1) * screenShake.mag * t;
+      screenShake.y = (Math.random()*2-1) * screenShake.mag * t;
+    } else {
+      screenShake.x = 0; screenShake.y = 0;
+    }
+
+    // #19 Decay torch flicker
+    if (torchFlicker.timer > 0) torchFlicker.timer -= dt;
+  }
 
   // Render
   ctx.save();
@@ -2502,6 +2555,11 @@ function loop(ts) {
   ctx.restore();  // #13 end shake
   drawUI();
   drawPoseHandles();
+
+  // Host: broadcast state to joiner after each frame
+  if (netMode === 'host' && conn && conn.open) {
+    conn.send({type:'state', data:serState()});
+  }
 
   prevKeys = Object.assign({}, keys);  // #6 fresh snapshot, no stale keys
   requestAnimationFrame(loop);
@@ -2861,6 +2919,240 @@ document.getElementById('reset-btn').addEventListener('click', () => {
   k1.reset(); k2.reset();
   document.getElementById('title-screen').style.display = 'none';
 });
+
+// ─── MULTIPLAYER ─────────────────────────────────────────────────────────────
+let netMode     = 'local'; // 'local' | 'host' | 'join'
+let peer        = null;
+let conn        = null;
+let remoteKeys  = {};
+let lastReceivedState = null;
+let mpP1Ready   = false;
+let mpP2Ready   = false;
+
+function mpStatus(msg) {
+  document.getElementById('mp-status').innerHTML = msg;
+}
+
+function showReadyBtns() {
+  document.getElementById('p1-ready-btn').style.display = '';
+  document.getElementById('p2-ready-btn').style.display = '';
+}
+
+function updateReadyBtnsUI(r1, r2) {
+  document.getElementById('p1-ready-btn').classList.toggle('active', !!r1);
+  document.getElementById('p2-ready-btn').classList.toggle('active', !!r2);
+}
+
+function mpStartMatch() {
+  mpP1Ready = false; mpP2Ready = false;
+  updateReadyBtnsUI(false, false);
+  if (AC.state === 'suspended') AC.resume();
+  sfxTrumpet();
+  document.getElementById('title-screen').style.display = 'none';
+  p1Wins = 0; p2Wins = 0;
+  k1.severed.length = 0; k2.severed.length = 0;
+  particles.length = 0; flyingSwords.length = 0;
+  phase = 'countdown'; phaseT = 0; countdown = 3; lastCountdownN = -1;
+  k1.reset(); k2.reset();
+}
+
+function checkBothReady() {
+  if (mpP1Ready && mpP2Ready && netMode === 'host') mpStartMatch();
+}
+
+// ── State serialization ───────────────────────────────────────────────────────
+function serKnight(k) {
+  return {
+    x:k.x, y:k.y, vx:k.vx, vy:k.vy,
+    facing:k.facing, onGround:k.onGround, crouching:k.crouching,
+    walkPhase:k.walkPhase, isWalking:k.isWalking, isMoving:k.isMoving,
+    stamina:k.stamina, hasSword:k.hasSword, hitFlash:k.hitFlash, stagger:k.stagger,
+    dead:k.dead, exhausted:k.exhausted, idleT:k.idleT, breathStress:k.breathStress,
+    helmetKnockedOff:k.helmetKnockedOff, bashHits:k.bashHits,
+    throwCooldown:k.throwCooldown, counterWindow:k.counterWindow, wasOnGround:k.wasOnGround,
+    parts:{...k.parts}, dents:{...k.dents},
+    atk:k.atk?{...k.atk}:null, blk:k.blk?{...k.blk}:null,
+    atkBuffer:k.atkBuffer?{...k.atkBuffer}:null,
+    colorKey:k.colorKey, shieldKey:k.shieldKey, detailKey:k.detailKey,
+    plumeKey:k.plumeKey, plumeStyle:k.plumeStyle, helmetStyle:k.helmetStyle,
+    colorName:k.colorName,
+    severed:k.severed.map(s=>({
+      type:s.type, x:s.x, y:s.y, vx:s.vx, vy:s.vy,
+      angle:s.angle, angV:s.angV, facing:s.facing, landed:s.landed, hasSword:s.hasSword,
+    })),
+  };
+}
+
+function serState() {
+  return {
+    phase, phaseT, p1Wins, p2Wins, countdown, lastCountdownN,
+    ss:{...screenShake}, tf:{...torchFlicker},
+    k1:serKnight(k1), k2:serKnight(k2),
+    swords:flyingSwords.map(sw=>({
+      x:sw.x, y:sw.y, vx:sw.vx, vy:sw.vy,
+      angle:sw.angle, angV:sw.angV, hit:sw.hit, landed:sw.landed,
+      owner:sw.owner===k1?1:2,
+    })),
+    pts:particles.slice(0,120).map(p=>({
+      x:p.x, y:p.y, vx:p.vx, vy:p.vy,
+      life:p.life, maxLife:p.maxLife, color:p.color, size:p.size,
+    })),
+    mpP1Ready, mpP2Ready,
+  };
+}
+
+function applyKnight(k, s) {
+  k.x=s.x; k.y=s.y; k.vx=s.vx; k.vy=s.vy;
+  k.facing=s.facing; k.onGround=s.onGround; k.crouching=s.crouching;
+  k.walkPhase=s.walkPhase; k.isWalking=s.isWalking; k.isMoving=s.isMoving;
+  k.stamina=s.stamina; k.hasSword=s.hasSword; k.hitFlash=s.hitFlash; k.stagger=s.stagger;
+  k.dead=s.dead; k.exhausted=s.exhausted; k.idleT=s.idleT; k.breathStress=s.breathStress;
+  k.helmetKnockedOff=s.helmetKnockedOff; k.bashHits=s.bashHits;
+  k.throwCooldown=s.throwCooldown; k.counterWindow=s.counterWindow; k.wasOnGround=s.wasOnGround;
+  k.parts={...s.parts}; k.dents={...s.dents};
+  k.atk=s.atk?{...s.atk}:null; k.blk=s.blk?{...s.blk}:null;
+  k.atkBuffer=s.atkBuffer?{...s.atkBuffer}:null;
+  if (k.colorKey!==s.colorKey||k.shieldKey!==s.shieldKey||
+      k.detailKey!==s.detailKey||k.plumeKey!==s.plumeKey||
+      k.plumeStyle!==s.plumeStyle||k.helmetStyle!==s.helmetStyle) {
+    k.colorKey=s.colorKey; k.shieldKey=s.shieldKey; k.detailKey=s.detailKey;
+    k.plumeKey=s.plumeKey; k.plumeStyle=s.plumeStyle; k.helmetStyle=s.helmetStyle;
+    k.colorName=s.colorName; k._rebuildPal();
+  }
+  while (k.severed.length > s.severed.length) k.severed.pop();
+  while (k.severed.length < s.severed.length) {
+    const sd = s.severed[k.severed.length];
+    k.severed.push(new SeveredPart(sd.type,sd.x,sd.y,sd.vx,sd.vy,sd.facing,k.pal,k.helmetStyle,sd.hasSword,k.plumeStyle));
+  }
+  for (let i=0;i<s.severed.length;i++) {
+    const d=k.severed[i], sr=s.severed[i];
+    d.x=sr.x; d.y=sr.y; d.vx=sr.vx; d.vy=sr.vy;
+    d.angle=sr.angle; d.angV=sr.angV; d.landed=sr.landed; d.hasSword=sr.hasSword;
+  }
+}
+
+function applyState(s) {
+  const prevPhase = phase;
+  const prevBeepN = lastCountdownN;
+  phase=s.phase; phaseT=s.phaseT; p1Wins=s.p1Wins; p2Wins=s.p2Wins;
+  countdown=s.countdown; lastCountdownN=s.lastCountdownN;
+  screenShake.x=s.ss.x; screenShake.y=s.ss.y; screenShake.timer=s.ss.timer; screenShake.mag=s.ss.mag;
+  torchFlicker.timer=s.tf.timer; torchFlicker.intensity=s.tf.intensity;
+  applyKnight(k1, s.k1); applyKnight(k2, s.k2);
+  // Flying swords
+  while (flyingSwords.length > s.swords.length) flyingSwords.pop();
+  while (flyingSwords.length < s.swords.length) {
+    const sd=s.swords[flyingSwords.length];
+    const ow=sd.owner===1?k1:k2;
+    flyingSwords.push(new FlyingSword(sd.x,sd.y,sd.vx,sd.vy,ow,ow.pal));
+  }
+  for (let i=0;i<s.swords.length;i++) {
+    const d=flyingSwords[i], sr=s.swords[i];
+    d.x=sr.x; d.y=sr.y; d.vx=sr.vx; d.vy=sr.vy;
+    d.angle=sr.angle; d.angV=sr.angV; d.hit=sr.hit; d.landed=sr.landed;
+  }
+  // Particles
+  while (particles.length > s.pts.length) particles.pop();
+  while (particles.length < s.pts.length) {
+    const pd=s.pts[particles.length];
+    const np=new Particle(pd.x,pd.y,pd.vx,pd.vy,pd.life,pd.color,pd.size);
+    np.maxLife=pd.maxLife; particles.push(np);
+  }
+  for (let i=0;i<s.pts.length;i++) {
+    const d=particles[i], sr=s.pts[i];
+    d.x=sr.x; d.y=sr.y; d.life=sr.life; d.maxLife=sr.maxLife; d.color=sr.color; d.size=sr.size;
+  }
+  // SFX for phase transitions
+  if (prevPhase!==phase) {
+    if (phase==='fight') sfxFight();
+    else if (phase==='round_over'||phase==='game_over') sfxVictory();
+  }
+  if (phase==='countdown' && prevBeepN!==lastCountdownN) {
+    if (lastCountdownN>0) sfxBeep(lastCountdownN);
+    else if (lastCountdownN===0) sfxFight();
+  }
+  updateReadyBtnsUI(s.mpP1Ready, s.mpP2Ready);
+}
+
+// ── Connection handling ───────────────────────────────────────────────────────
+function setupConn(c) {
+  conn = c;
+  conn.on('data', data => {
+    if      (data.type==='keys')    remoteKeys = data.keys;
+    else if (data.type==='state')   lastReceivedState = data.data;
+    else if (data.type==='p2Ready') { mpP2Ready=true; updateReadyBtnsUI(mpP1Ready,mpP2Ready); checkBothReady(); }
+  });
+  conn.on('close', () => {
+    mpStatus('Connection closed.'); netMode='local';
+    document.getElementById('p1-ready-btn').style.display='none';
+    document.getElementById('p2-ready-btn').style.display='none';
+  });
+  conn.on('error', err => mpStatus('Error: '+err));
+}
+
+function initHost() {
+  netMode='host'; mpStatus('Creating room…');
+  peer = new Peer();
+  peer.on('open', id => {
+    const url = window.location.href.split('?')[0]+'?join='+id;
+    mpStatus('Share this link with your opponent:<br><span class="mp-link" onclick="navigator.clipboard.writeText(\''+url+'\').then(()=>mpStatus(\'Copied!\'))" title="Click to copy">'+url+'</span><br>Waiting for opponent…');
+  });
+  peer.on('connection', c => {
+    setupConn(c);
+    mpStatus('Opponent connected! Click <b>P1 Ready</b> when ready.');
+    showReadyBtns();
+  });
+  peer.on('error', err => mpStatus('Peer error: '+err));
+}
+
+function initJoin(peerId) {
+  netMode='join'; mpStatus('Connecting…');
+  peer = new Peer();
+  peer.on('open', () => {
+    const c = peer.connect(peerId, {reliable:false, serialization:'json'});
+    setupConn(c);
+    c.on('open', () => {
+      mpStatus('Connected! Click <b>P2 Ready</b> when ready.');
+      document.getElementById('title-screen').style.display='none';
+      showReadyBtns();
+    });
+  });
+  peer.on('error', err => mpStatus('Peer error: '+err));
+}
+
+// ── Button handlers ───────────────────────────────────────────────────────────
+document.getElementById('host-btn').addEventListener('click', () => {
+  if (AC.state==='suspended') AC.resume();
+  initHost();
+});
+
+document.getElementById('join-btn').addEventListener('click', () => {
+  if (AC.state==='suspended') AC.resume();
+  const urlParams = new URLSearchParams(window.location.search);
+  const joinId = urlParams.get('join');
+  if (joinId) { initJoin(joinId); return; }
+  const id = prompt('Enter host code:');
+  if (id) initJoin(id.trim());
+});
+
+document.getElementById('p1-ready-btn').addEventListener('click', () => {
+  if (netMode!=='host') return;
+  mpP1Ready=true; updateReadyBtnsUI(mpP1Ready,mpP2Ready); checkBothReady();
+});
+
+document.getElementById('p2-ready-btn').addEventListener('click', () => {
+  if (netMode!=='join') return;
+  if (conn&&conn.open) conn.send({type:'p2Ready'});
+  document.getElementById('p2-ready-btn').classList.add('active');
+});
+
+// ── Auto-join from URL: pre-label button so joiner knows to click it ─────────
+(function() {
+  const joinId = new URLSearchParams(window.location.search).get('join');
+  if (!joinId) return;
+  document.getElementById('join-btn').textContent = '⚐  Connect to Host';
+  mpStatus('Host code detected — click <b>Connect to Host</b> to join.');
+})();
 </script>
 </body>
 </html>
