@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>Duel of Ages</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cinzel+Decorative:wght@700;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; user-select:none; font-family:'Cinzel',serif; }
@@ -60,11 +61,35 @@ canvas { display:block; border:3px solid #7a5c1a; }
   font:700 13px 'Cinzel',serif; color:#c08040; letter-spacing:3px;
   background:linear-gradient(160deg,#1a0e06,#2c1808,#1a0e06);
   border:2px solid #7a4010; padding:7px 28px; cursor:pointer;
-  margin-top:10px; text-transform:uppercase;
+  text-transform:uppercase;
   box-shadow:0 0 10px rgba(120,60,0,0.2);
   transition:all 0.18s;
 }
 #reset-btn:hover { border-color:#c06020; color:#e0a060; box-shadow:0 0 18px rgba(180,80,0,0.35); }
+.ts-or { color:#5a5030; font:400 13px 'Cinzel',serif; letter-spacing:3px; margin:22px 0 14px; }
+.ts-mp-row { display:flex; gap:18px; justify-content:center; }
+.mp-btn {
+  font:700 16px 'Cinzel',serif; color:#c0a050;
+  background:linear-gradient(160deg,#1a1008,#2c2010,#1a1008);
+  border:2px solid #7a6020; padding:10px 26px; cursor:pointer;
+  letter-spacing:3px; transition:all 0.18s;
+}
+.mp-btn:hover { border-color:#c0a030; color:#f0d070; box-shadow:0 0 18px rgba(180,140,0,0.3); }
+#mp-status {
+  color:#a09060; font:400 12px 'Cinzel',serif; letter-spacing:1px;
+  margin-top:16px; text-align:center; min-height:20px; max-width:440px;
+  line-height:1.7; word-break:break-all;
+}
+.mp-link { color:#80b8f0; cursor:pointer; text-decoration:underline; font-size:11px; }
+#bottom-controls { display:flex; gap:10px; align-items:center; margin-top:10px; justify-content:center; }
+.ready-btn {
+  font:700 11px 'Cinzel',serif; color:#60c070; letter-spacing:2px;
+  background:linear-gradient(160deg,#061006,#0e1e0a,#061006);
+  border:2px solid #2a5a24; padding:7px 16px; cursor:pointer;
+  text-transform:uppercase; transition:all 0.18s;
+}
+.ready-btn:hover { border-color:#50a040; color:#80e090; box-shadow:0 0 14px rgba(60,160,50,0.3); }
+.ready-btn.active { border-color:#80e090; color:#c0ffc8; box-shadow:0 0 14px rgba(60,200,80,0.45); }
 #pose-info {
   display:none; position:absolute; bottom:6px; right:6px;
   background:rgba(0,0,0,0.88); border:1px solid #c8a020;
@@ -83,6 +108,12 @@ canvas { display:block; border:3px solid #7a5c1a; }
     <div class="ts-title">⚔ Duel of Ages ⚔</div>
     <div class="ts-sub">A Battle of Steel &amp; Honour</div>
     <button id="battle-btn">⚔ &nbsp; Battle! &nbsp; ⚔</button>
+    <div class="ts-or">— or —</div>
+    <div class="ts-mp-row">
+      <button id="host-btn" class="mp-btn">⚑ &nbsp; Host Game</button>
+      <button id="join-btn" class="mp-btn">⚐ &nbsp; Join Game</button>
+    </div>
+    <div id="mp-status"></div>
   </div>
 </div>
 <div id="hud">
@@ -90,7 +121,11 @@ canvas { display:block; border:3px solid #7a5c1a; }
   &nbsp;&nbsp;
   <span style="color:#f08080">P2:</span> Arrows move &bull; <b>P</b>/<b>L</b>/<b>.</b> attack Hi/Mid/Lo &bull; <b>[</b>/<b>;</b>/<b>/</b> block Hi/Mid/Lo &bull; <b>O</b> throw sword
 </div>
-<button id="reset-btn">&#9876; &nbsp; Reset Match &nbsp; &#9876;</button>
+<div id="bottom-controls">
+  <button id="p1-ready-btn" class="ready-btn" style="display:none">⚔ P1 Ready</button>
+  <button id="reset-btn">&#9876; &nbsp; Reset Match &nbsp; &#9876;</button>
+  <button id="p2-ready-btn" class="ready-btn" style="display:none">⚔ P2 Ready</button>
+</div>
 <div id="color-select">
   <div class="cs-player">
     <div class="cs-title">P1 &mdash; Armour</div>
