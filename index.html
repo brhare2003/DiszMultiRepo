@@ -34,6 +34,21 @@ canvas { display:block; border:3px solid #7a5c1a; }
   font:400 17px 'Cinzel',serif; color:#a09060; letter-spacing:5px;
   margin-bottom:44px;
 }
+#mp-lobby {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.68);
+  display:none; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px; z-index:5; padding:16px;
+}
+.mpl-title {
+  font:900 52px 'Cinzel Decorative',serif; color:#f0d060;
+  text-shadow:0 0 40px rgba(240,160,0,0.7),2px 2px 0 #000;
+  line-height:1.1; text-align:center;
+}
+.mpl-status {
+  font:400 13px 'Cinzel',serif; color:#a09060; letter-spacing:2px;
+  text-align:center; max-width:520px; word-break:break-all; line-height:1.9;
+}
 #battle-btn {
   font:900 30px 'Cinzel Decorative',serif; color:#f0d060;
   background:linear-gradient(160deg,#2a1608,#4a2810,#2a1608);
@@ -114,6 +129,10 @@ canvas { display:block; border:3px solid #7a5c1a; }
       <button id="join-btn" class="mp-btn">⚐ &nbsp; Join Game</button>
     </div>
     <div id="mp-status"></div>
+  </div>
+  <div id="mp-lobby">
+    <div class="mpl-title">⚔ Preparing to Battle ⚔</div>
+    <div class="mpl-status" id="mpl-status"></div>
   </div>
 </div>
 <div id="hud">
@@ -2931,6 +2950,18 @@ let mpP2Ready   = false;
 
 function mpStatus(msg) {
   document.getElementById('mp-status').innerHTML = msg;
+  document.getElementById('mpl-status').innerHTML = msg;
+}
+
+function showLobby(msg) {
+  document.getElementById('title-screen').style.display = 'none';
+  const lobby = document.getElementById('mp-lobby');
+  lobby.style.display = 'flex';
+  if (msg) document.getElementById('mpl-status').innerHTML = msg;
+}
+
+function hideLobby() {
+  document.getElementById('mp-lobby').style.display = 'none';
 }
 
 function showReadyBtns() {
@@ -2948,6 +2979,7 @@ function mpStartMatch() {
   updateReadyBtnsUI(false, false);
   if (AC.state === 'suspended') AC.resume();
   sfxTrumpet();
+  hideLobby();
   document.getElementById('title-screen').style.display = 'none';
   p1Wins = 0; p2Wins = 0;
   k1.severed.length = 0; k2.severed.length = 0;
@@ -3083,7 +3115,7 @@ function setupConn(c) {
     else if (data.type==='p2Ready') { mpP2Ready=true; updateReadyBtnsUI(mpP1Ready,mpP2Ready); checkBothReady(); }
   });
   conn.on('close', () => {
-    mpStatus('Connection closed.'); netMode='local';
+    netMode='local'; hideLobby();
     document.getElementById('p1-ready-btn').style.display='none';
     document.getElementById('p2-ready-btn').style.display='none';
   });
@@ -3091,33 +3123,37 @@ function setupConn(c) {
 }
 
 function initHost() {
-  netMode='host'; mpStatus('Creating room…');
+  netMode='host';
+  showLobby('Creating room…');
   peer = new Peer();
   peer.on('open', id => {
     const url = window.location.href.split('?')[0]+'?join='+id;
-    mpStatus('Share this link with your opponent:<br><span class="mp-link" onclick="navigator.clipboard.writeText(\''+url+'\').then(()=>mpStatus(\'Copied!\'))" title="Click to copy">'+url+'</span><br>Waiting for opponent…');
+    document.getElementById('mpl-status').innerHTML =
+      'Share this link with your opponent:<br>' +
+      '<span class="mp-link" onclick="navigator.clipboard.writeText(\''+url+'\').then(()=>{document.getElementById(\'mpl-status\').innerHTML=\'Link copied!\'})" title="Click to copy">'+url+'</span><br>' +
+      'Waiting for opponent…';
   });
   peer.on('connection', c => {
     setupConn(c);
-    mpStatus('Opponent connected! Click <b>P1 Ready</b> when ready.');
+    document.getElementById('mpl-status').innerHTML = 'Opponent connected! Click <b>P1 Not Ready</b> when ready.';
     showReadyBtns();
   });
-  peer.on('error', err => mpStatus('Peer error: '+err));
+  peer.on('error', err => { document.getElementById('mpl-status').innerHTML = 'Peer error: '+err; });
 }
 
 function initJoin(peerId) {
-  netMode='join'; mpStatus('Connecting…');
+  netMode='join';
+  showLobby('Connecting to host…');
   peer = new Peer();
   peer.on('open', () => {
     const c = peer.connect(peerId, {reliable:false, serialization:'json'});
     setupConn(c);
     c.on('open', () => {
-      mpStatus('Connected! Click <b>P2 Ready</b> when ready.');
-      document.getElementById('title-screen').style.display='none';
+      document.getElementById('mpl-status').innerHTML = 'Connected! Click <b>P2 Not Ready</b> when ready.';
       showReadyBtns();
     });
   });
-  peer.on('error', err => mpStatus('Peer error: '+err));
+  peer.on('error', err => { document.getElementById('mpl-status').innerHTML = 'Peer error: '+err; });
 }
 
 // ── Button handlers ───────────────────────────────────────────────────────────
