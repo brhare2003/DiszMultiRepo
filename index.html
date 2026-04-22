@@ -146,7 +146,7 @@ canvas { display:block; border:3px solid #7a5c1a; }
   <button id="p2-ready-btn" class="ready-btn" style="display:none">⚔ P2 Ready</button>
 </div>
 <div id="color-select">
-  <div class="cs-player">
+  <div class="cs-player" id="cs-p1">
     <div class="cs-title">P1 &mdash; Armour</div>
     <div class="cs-swatches" id="sw-p1"></div>
     <div class="cs-title cs-sub">Shield</div>
@@ -160,7 +160,7 @@ canvas { display:block; border:3px solid #7a5c1a; }
     <div class="cs-title cs-sub">Plume Shape</div>
     <div class="cs-helmets" id="ps-p1"></div>
   </div>
-  <div class="cs-player">
+  <div class="cs-player" id="cs-p2">
     <div class="cs-title">P2 &mdash; Armour</div>
     <div class="cs-swatches" id="sw-p2"></div>
     <div class="cs-title cs-sub">Shield</div>
@@ -2969,6 +2969,17 @@ function showReadyBtns() {
   document.getElementById('p2-ready-btn').style.display = '';
 }
 
+function lockColorPanels(role) {
+  // role: 'host' hides p2 panel; 'join' hides p1 panel
+  document.getElementById('cs-p1').style.display = role === 'join' ? 'none' : '';
+  document.getElementById('cs-p2').style.display = role === 'host' ? 'none' : '';
+}
+
+function unlockColorPanels() {
+  document.getElementById('cs-p1').style.display = '';
+  document.getElementById('cs-p2').style.display = '';
+}
+
 function updateReadyBtnsUI(r1, r2) {
   document.getElementById('p1-ready-btn').classList.toggle('active', !!r1);
   document.getElementById('p2-ready-btn').classList.toggle('active', !!r2);
@@ -3115,7 +3126,7 @@ function setupConn(c) {
     else if (data.type==='p2Ready') { mpP2Ready=true; updateReadyBtnsUI(mpP1Ready,mpP2Ready); checkBothReady(); }
   });
   conn.on('close', () => {
-    netMode='local'; hideLobby();
+    netMode='local'; hideLobby(); unlockColorPanels();
     document.getElementById('p1-ready-btn').style.display='none';
     document.getElementById('p2-ready-btn').style.display='none';
   });
@@ -3137,6 +3148,7 @@ function initHost() {
     setupConn(c);
     document.getElementById('mpl-status').innerHTML = 'Opponent connected! Click <b>P1 Not Ready</b> when ready.';
     showReadyBtns();
+    lockColorPanels('host');
   });
   peer.on('error', err => { document.getElementById('mpl-status').innerHTML = 'Peer error: '+err; });
 }
@@ -3151,6 +3163,7 @@ function initJoin(peerId) {
     c.on('open', () => {
       document.getElementById('mpl-status').innerHTML = 'Connected! Click <b>P2 Not Ready</b> when ready.';
       showReadyBtns();
+      lockColorPanels('join');
     });
   });
   peer.on('error', err => { document.getElementById('mpl-status').innerHTML = 'Peer error: '+err; });
