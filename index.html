@@ -1,0 +1,2866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Knight Duel</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cinzel+Decorative:wght@700;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; user-select:none; font-family:'Cinzel',serif; }
+canvas { display:block; border:3px solid #7a5c1a; }
+#hud { color:#666; font:11px 'Cinzel',serif; margin-top:6px; text-align:center; line-height:1.9; letter-spacing:0.04em; }
+#color-select { display:flex; gap:60px; margin-top:10px; align-items:flex-start; }
+.cs-player { display:flex; flex-direction:column; align-items:center; gap:5px; }
+.cs-title { font:700 11px 'Cinzel',serif; letter-spacing:2px; color:#7a6830; text-transform:uppercase; }
+.cs-swatches { display:flex; gap:5px; }
+.cs-swatch { width:26px; height:26px; border-radius:4px; border:2px solid #333; cursor:pointer; transition:border-color 0.15s, transform 0.1s, box-shadow 0.15s; }
+.cs-swatch:hover { border-color:#aaa; transform:scale(1.13); }
+.cs-swatch.active { border-color:#f0d070; box-shadow:0 0 8px #f0d07099; transform:scale(1.08); }
+.cs-sub { font-size:10px; margin-top:5px; color:#5a5030; letter-spacing:1px; }
+#game-wrap { position:relative; display:inline-block; line-height:0; }
+#title-screen {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.82);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:0;
+}
+.ts-title {
+  font:900 68px 'Cinzel Decorative',serif; color:#f0d060;
+  text-shadow:0 0 40px rgba(240,160,0,0.7),2px 2px 0 #000;
+  margin-bottom:8px; line-height:1;
+}
+.ts-sub {
+  font:400 17px 'Cinzel',serif; color:#a09060; letter-spacing:5px;
+  margin-bottom:44px;
+}
+#battle-btn {
+  font:900 30px 'Cinzel Decorative',serif; color:#f0d060;
+  background:linear-gradient(160deg,#2a1608,#4a2810,#2a1608);
+  border:3px solid #c8a020; padding:15px 52px; cursor:pointer;
+  letter-spacing:5px;
+  text-shadow:0 0 12px rgba(240,160,0,0.55);
+  box-shadow:0 0 24px rgba(200,160,0,0.25),inset 0 0 24px rgba(0,0,0,0.45);
+  transition:all 0.18s;
+}
+#battle-btn:hover {
+  background:linear-gradient(160deg,#3a2010,#6a3810,#3a2010);
+  box-shadow:0 0 36px rgba(200,160,0,0.5),inset 0 0 16px rgba(0,0,0,0.25);
+  transform:scale(1.06);
+}
+.cs-helmets { display:flex; gap:4px; }
+.cs-hbtn {
+  padding:4px 9px; border-radius:4px; border:2px solid #333;
+  cursor:pointer; font:700 9px 'Cinzel',serif;
+  background:#161420; color:#666; letter-spacing:0.5px;
+  transition:all 0.15s;
+}
+.cs-hbtn:hover { border-color:#888; color:#aaa; }
+.cs-hbtn.active { border-color:#f0d070; color:#f0d070; box-shadow:0 0 6px #f0d07055; }
+#reset-btn {
+  font:700 13px 'Cinzel',serif; color:#c08040; letter-spacing:3px;
+  background:linear-gradient(160deg,#1a0e06,#2c1808,#1a0e06);
+  border:2px solid #7a4010; padding:7px 28px; cursor:pointer;
+  margin-top:10px; text-transform:uppercase;
+  box-shadow:0 0 10px rgba(120,60,0,0.2);
+  transition:all 0.18s;
+}
+#reset-btn:hover { border-color:#c06020; color:#e0a060; box-shadow:0 0 18px rgba(180,80,0,0.35); }
+#pose-info {
+  display:none; position:absolute; bottom:6px; right:6px;
+  background:rgba(0,0,0,0.88); border:1px solid #c8a020;
+  color:#c8d8a0; font:11px/1.65 monospace; padding:8px 12px;
+  pointer-events:auto; user-select:text; white-space:pre; z-index:20;
+  max-width:340px; border-radius:3px;
+}
+#pose-info.on { display:block; }
+</style>
+</head>
+<body>
+<div id="game-wrap">
+  <canvas id="c" width="1000" height="580"></canvas>
+  <div id="pose-info"></div>
+  <div id="title-screen">
+    <div class="ts-title">⚔ Knight Duel ⚔</div>
+    <div class="ts-sub">A Battle of Steel &amp; Honour</div>
+    <button id="battle-btn">⚔ &nbsp; Battle! &nbsp; ⚔</button>
+  </div>
+</div>
+<div id="hud">
+  <span style="color:#80b0f0">P1:</span> WASD move &bull; <b>R</b>/<b>F</b>/<b>C</b> attack Hi/Mid/Lo &bull; <b>T</b>/<b>G</b>/<b>V</b> block Hi/Mid/Lo &bull; <b>E</b> throw sword
+  &nbsp;&nbsp;
+  <span style="color:#f08080">P2:</span> Arrows move &bull; <b>P</b>/<b>L</b>/<b>.</b> attack Hi/Mid/Lo &bull; <b>[</b>/<b>;</b>/<b>/</b> block Hi/Mid/Lo &bull; <b>O</b> throw sword
+</div>
+<button id="reset-btn">&#9876; &nbsp; Reset Match &nbsp; &#9876;</button>
+<div id="color-select">
+  <div class="cs-player">
+    <div class="cs-title">P1 &mdash; Armour</div>
+    <div class="cs-swatches" id="sw-p1"></div>
+    <div class="cs-title cs-sub">Shield</div>
+    <div class="cs-swatches" id="sw-p1-shield"></div>
+    <div class="cs-title cs-sub">Shield Cross</div>
+    <div class="cs-swatches" id="sw-p1-cross"></div>
+    <div class="cs-title cs-sub">Plumage</div>
+    <div class="cs-swatches" id="sw-p1-plume"></div>
+    <div class="cs-title cs-sub">Helmet</div>
+    <div class="cs-helmets" id="hm-p1"></div>
+    <div class="cs-title cs-sub">Plume Shape</div>
+    <div class="cs-helmets" id="ps-p1"></div>
+  </div>
+  <div class="cs-player">
+    <div class="cs-title">P2 &mdash; Armour</div>
+    <div class="cs-swatches" id="sw-p2"></div>
+    <div class="cs-title cs-sub">Shield</div>
+    <div class="cs-swatches" id="sw-p2-shield"></div>
+    <div class="cs-title cs-sub">Shield Cross</div>
+    <div class="cs-swatches" id="sw-p2-cross"></div>
+    <div class="cs-title cs-sub">Plumage</div>
+    <div class="cs-swatches" id="sw-p2-plume"></div>
+    <div class="cs-title cs-sub">Helmet</div>
+    <div class="cs-helmets" id="hm-p2"></div>
+    <div class="cs-title cs-sub">Plume Shape</div>
+    <div class="cs-helmets" id="ps-p2"></div>
+  </div>
+</div>
+<script>
+'use strict';
+
+// ─── CANVAS ──────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+let   ctx    = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const GROUND = H - 80;
+
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+    r=Math.min(r,w/2,h/2);
+    this.moveTo(x+r,y);this.lineTo(x+w-r,y);this.quadraticCurveTo(x+w,y,x+w,y+r);
+    this.lineTo(x+w,y+h-r);this.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    this.lineTo(x+r,y+h);this.quadraticCurveTo(x,y+h,x,y+h-r);
+    this.lineTo(x,y+r);this.quadraticCurveTo(x,y,x+r,y);this.closePath();
+  };
+}
+
+// ─── INPUT ───────────────────────────────────────────────────────────────────
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (e.code === 'Backquote') { poseToggle(); return; }
+  keys[e.code] = true;
+  if (/^(Arrow|Space)/.test(e.code)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// ─── GAMEPAD (#22) ───────────────────────────────────────────────────────────
+// Standard layout: 0=A 1=B 2=X 3=Y 4=LB 5=RB 6=LT 7=RT 12=DUp 13=DDown 14=DLeft 15=DRight
+const GP_MAPS = [
+  { // P1 — gamepad 0
+    buttons: { 14:'KeyA',15:'KeyD',12:'KeyW',13:'KeyS',
+               0:'KeyF',1:'KeyR',3:'KeyC',
+               4:'KeyT',5:'KeyG',6:'KeyV',7:'KeyE' },
+    axes: { 0:{ neg:'KeyA', pos:'KeyD' }, 1:{ neg:'KeyW', pos:'KeyS' } },
+  },
+  { // P2 — gamepad 1
+    buttons: { 14:'ArrowLeft',15:'ArrowRight',12:'ArrowUp',13:'ArrowDown',
+               0:'KeyL',1:'KeyP',3:'Period',
+               4:'BracketLeft',5:'Semicolon',6:'Slash',7:'KeyO' },
+    axes: { 0:{ neg:'ArrowLeft', pos:'ArrowRight' }, 1:{ neg:'ArrowUp', pos:'ArrowDown' } },
+  },
+];
+
+function pollGamepads() {
+  const gps = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (let gi = 0; gi < 2; gi++) {
+    const gp = gps[gi]; const map = GP_MAPS[gi];
+    if (!gp || !map) continue;
+    for (const [bi, code] of Object.entries(map.buttons))
+      keys[code] = keys[code] || (gp.buttons[+bi]?.pressed ?? false);
+    for (const [ai, ax] of Object.entries(map.axes)) {
+      const v = gp.axes[+ai] || 0;
+      keys[ax.neg] = keys[ax.neg] || v < -0.4;
+      keys[ax.pos] = keys[ax.pos] || v >  0.4;
+    }
+  }
+}
+
+// ─── PHYSICS / GAME CONSTANTS ────────────────────────────────────────────────
+const GRAVITY      = 1400;
+const JUMP_VEL     = -560;
+const WALK_SPD     = 210;
+const CROUCH_SPD   = 65;
+const ONE_LEG_SPD  = 120;   // #9 buffed from 88
+
+const STAGGER_PUSH  = 120;  // #3 px/s push-back during stagger
+const SWORD_REACH   = 135;  // #4 px — sword attack distance
+const PUNCH_REACH   = 85;   // #4 px — punch/bash distance
+
+const STAMINA_MAX        = 100;
+const STAMINA_REGEN      = 18;   // /sec while not exhausted
+const BLOCK_DRAIN        = 30;   // extra /sec while blocking (with shield arm)
+const SWORDBLOCK_DRAIN   = 48;   // extra /sec blocking without shield arm
+const STAMINA_EXHAUST_AT = 0;    // exhaustion triggers at this value
+const STAMINA_RECOVER_TO = 28;   // must reach this before acting again
+
+const WINDUP_T  = 0.13;
+const ACTIVE_T  = 0.16;
+const RECOVER_T = 0.22;
+const ATK_COST  = 30;
+const BASH_COST = 22;
+
+// Sword attack animations: each phase has { arm, swrd }
+//   arm  = whole-arm rotation from shoulder (0=straight down, +θ CW = toward opponent)
+//   swrd = sword angle at hilt relative to forearm (0=blade along arm toward tip-up)
+// Trick: to keep blade pointed at opponent, maintain arm+swrd = π/2 (≈1.571) always.
+const REST_ARM  = -0.5;        // resting arm angle (guard: arm tucked in)
+const REST_SWRD = 1.1;         // resting sword angle (blade tilted up-forward, sword held closer to body)
+// For all attacks swrd = π/2 − arm so the blade always faces the opponent.
+const QPI = Math.PI / 2; // quarter-turn constant (≈1.5708)
+const ATK_ANG = {
+  // Overhead chop: arm cocks way up-back then slams all the way down-forward
+  high: {
+    wu:  { arm: -2.7, swrd: QPI + 2.7 },  // arm raised high overhead-back, blade → opponent
+    act: { arm:  1.5, swrd: QPI - 1.5 },  // arm slammed hard forward-down, blade → opponent
+  },
+  // Forward thrust: arm pulls back then pokes straight forward at opponent
+  mid: {
+    wu:  { arm: -0.5, swrd: QPI + 0.5 },  // arm cocked back,    blade → opponent
+    act: { arm:  0.4, swrd: QPI - 0.4 },  // arm driven forward, blade → opponent
+  },
+  // Upward sweep: arm drops way down then sweeps hard all the way up-back
+  low: {
+    wu:  { arm:  2.2, swrd: QPI - 2.2 },  // arm dropped far forward-down, blade → opponent
+    act: { arm: -2.5, swrd: QPI + 2.5 },  // arm swept hard up-back,       blade → opponent
+  },
+  // Five high swing variants — mapped to digit keys
+  h1: { wu: { arm: -2.7, swrd: QPI+2.7 }, act: { arm:  1.5, swrd: QPI-1.5 } }, // classic overhead chop
+  h2: { wu: { arm: -3.0, swrd: QPI+3.0 }, act: { arm:  2.4, swrd: QPI-2.4 } }, // full windmill sweep
+  h3: { wu: { arm: -1.3, swrd: QPI+1.3 }, act: { arm:  1.0, swrd: QPI-1.0 } }, // quick snap chop
+  h4: { wu: { arm: -2.4, swrd: QPI+2.4 }, act: { arm:  0.1, swrd: QPI-0.1 } }, // straight vertical drop
+  h5: { wu: { arm: -1.8, swrd: QPI+1.8 }, act: { arm:  2.8, swrd: QPI-2.8 } }, // low start huge follow-through
+  // Unarmed punches (no sword): swrd repurposed as elbow bend (negative = fold back)
+  // act values measured with pose editor; wu pulls back from guard stance
+  punchH: { wu: { arm: -0.1, swrd: -1.7 }, act: { arm: -1.916, swrd: -0.920 } }, // uppercut
+  punchM: { wu: { arm: -0.1, swrd: -1.8 }, act: { arm: -1.443, swrd: -0.481 } }, // straight jab
+  punchL: { wu: { arm:  0.2, swrd: -1.6 }, act: { arm: -0.382, swrd: -0.594 } }, // low hook
+  // Kicks (no arms): leg animation driven by _kickOffset(); arm values unused
+  kick:    { wu: { arm: 0, swrd: 0 }, act: { arm: 0, swrd: 0 } },
+  // Headbutt (1 leg, no arms): body lurch driven by _headbuttOffset()
+  headbutt:{ wu: { arm: 0, swrd: 0 }, act: { arm: 0, swrd: 0 } },
+};
+
+// Shield arm offsets during blocks (negative swings shield forward / toward opponent)
+const BLK_ANG = { high: -1.1, mid: -0.5, low: 0.15 };
+
+// How far the shield arm retreats when the sword arm is attacking
+const SHIELD_RETREAT = 0.8;
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function rbox(x,y,w,h,r,fc,sc,lw=2){
+  ctx.beginPath(); ctx.roundRect(x,y,w,h,r);
+  if(fc){ctx.fillStyle=fc;ctx.fill();}
+  if(sc){ctx.strokeStyle=sc;ctx.lineWidth=lw;ctx.stroke();}
+}
+function circ(x,y,r,fc,sc,lw=2){
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+  if(fc){ctx.fillStyle=fc;ctx.fill();}
+  if(sc){ctx.strokeStyle=sc;ctx.lineWidth=lw;ctx.stroke();}
+}
+function ln(x1,y1,x2,y2,col,lw=1.5){
+  ctx.strokeStyle=col; ctx.lineWidth=lw;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+}
+function lerp(a,b,t){ return a+(b-a)*t; }
+function toRoman(n){ return ['I','II','III'][n-1] || String(n); }
+
+// ─── KNIGHT COLOUR PALETTES ──────────────────────────────────────────────────
+const COLOR_OPTIONS = [
+  { key:'red',    hex:'#b02020', name:'Red'    },
+  { key:'green',  hex:'#2a7a2a', name:'Green'  },
+  { key:'black',  hex:'#383840', name:'Black'  },
+  { key:'blue',   hex:'#4a72b8', name:'Blue'   },
+  { key:'purple', hex:'#6a2a8a', name:'Purple' },
+  { key:'gold',   hex:'#b88a10', name:'Gold'   },
+  { key:'silver', hex:'#909098', name:'Silver' },
+  { key:'orange', hex:'#c06018', name:'Orange' },
+];
+
+const SHIELD_COLS = {
+  red:'#8a1818', green:'#1a5a1a', black:'#1c1c24', blue:'#1e3a88',
+  purple:'#3a0e58', gold:'#8a5c08', silver:'#4e5058', orange:'#782408',
+};
+
+const SHIELD_OPTIONS = [
+  { key:'red',    hex:SHIELD_COLS.red,    name:'Red'    },
+  { key:'green',  hex:SHIELD_COLS.green,  name:'Green'  },
+  { key:'black',  hex:SHIELD_COLS.black,  name:'Black'  },
+  { key:'blue',   hex:SHIELD_COLS.blue,   name:'Blue'   },
+  { key:'purple', hex:SHIELD_COLS.purple, name:'Purple' },
+  { key:'gold',   hex:SHIELD_COLS.gold,   name:'Gold'   },
+  { key:'silver', hex:SHIELD_COLS.silver, name:'Silver' },
+  { key:'orange', hex:SHIELD_COLS.orange, name:'Orange' },
+];
+
+const SHIELD_DETAIL_COLS = {
+  gold:'#c8a020', silver:'#a8a8b0', white:'#dcdce0', red:'#a01818',
+  blue:'#1840a0', black:'#141418', bronze:'#8a5018', green:'#1a6020',
+};
+const SHIELD_DETAIL_OPTIONS = [
+  { key:'gold',   hex:SHIELD_DETAIL_COLS.gold,   name:'Gold'   },
+  { key:'silver', hex:SHIELD_DETAIL_COLS.silver,  name:'Silver' },
+  { key:'white',  hex:SHIELD_DETAIL_COLS.white,   name:'White'  },
+  { key:'red',    hex:SHIELD_DETAIL_COLS.red,     name:'Red'    },
+  { key:'blue',   hex:SHIELD_DETAIL_COLS.blue,    name:'Blue'   },
+  { key:'black',  hex:SHIELD_DETAIL_COLS.black,   name:'Black'  },
+  { key:'bronze', hex:SHIELD_DETAIL_COLS.bronze,  name:'Bronze' },
+  { key:'green',  hex:SHIELD_DETAIL_COLS.green,   name:'Green'  },
+];
+
+const HELMET_STYLES = [
+  { n:1, name:'Armet'     },
+  { n:2, name:'Great Helm'},
+  { n:3, name:'Bascinet'  },
+  { n:4, name:'Sallet'    },
+];
+
+const PLUME_COLS = {
+  red:'#cc2020', blue:'#2050cc', gold:'#d4a820', green:'#1a8030',
+  white:'#dcdce0', black:'#181820', purple:'#8030b0', orange:'#d06010',
+};
+const PLUME_OPTIONS = [
+  { key:'red',    hex:PLUME_COLS.red,    name:'Red'    },
+  { key:'blue',   hex:PLUME_COLS.blue,   name:'Blue'   },
+  { key:'gold',   hex:PLUME_COLS.gold,   name:'Gold'   },
+  { key:'green',  hex:PLUME_COLS.green,  name:'Green'  },
+  { key:'white',  hex:PLUME_COLS.white,  name:'White'  },
+  { key:'black',  hex:PLUME_COLS.black,  name:'Black'  },
+  { key:'purple', hex:PLUME_COLS.purple, name:'Purple' },
+  { key:'orange', hex:PLUME_COLS.orange, name:'Orange' },
+];
+
+// Blend a hex colour toward warm firelight. w = 0 → original, w = 1 → fully lit.
+// Boosts red, gently warms green, damps blue — the same spectral shift you get
+// when orange flame light hits coloured metal.
+function warmHex(hex, w) {
+  if (!hex || hex[0] !== '#' || hex.length < 7) return hex;
+  let r = parseInt(hex.slice(1, 3), 16);
+  let g = parseInt(hex.slice(3, 5), 16);
+  let b = parseInt(hex.slice(5, 7), 16);
+  // Push toward warm amber (255, 170, 50)
+  r = Math.min(255, Math.round(r + (255 - r) * w * 0.38 + w * 30));
+  g = Math.min(255, Math.round(g + (170 - g) * w * 0.14 + w * 10));
+  b = Math.max(0,   Math.round(b - b * w * 0.35));
+  return '#' + r.toString(16).padStart(2, '0')
+             + g.toString(16).padStart(2, '0')
+             + b.toString(16).padStart(2, '0');
+}
+
+function makeKnightPalette(key, shieldKey, detailKey, plumeKey) {
+  const C = {
+    red:    { armor:'#b02020', detail:'#d84040', leg:'#8a1818', boot:'#2a0808', belt:'#2a1208', visor:'#090404', plume:'#2050cc', swordGrip:'#282828', label:'#f07070' },
+    green:  { armor:'#2a7a2a', detail:'#44aa44', leg:'#1e5a1e', boot:'#0a1e0a', belt:'#182a10', visor:'#040904', plume:'#cc9900', swordGrip:'#1a2808', label:'#70cc70' },
+    black:  { armor:'#383840', detail:'#585868', leg:'#242430', boot:'#101018', belt:'#181818', visor:'#050508', plume:'#cc2020', swordGrip:'#181818', label:'#9090b0' },
+    blue:   { armor:'#4a72b8', detail:'#6898e0', leg:'#3a5a98', boot:'#18284a', belt:'#3a2810', visor:'#090914', plume:'#cc2020', swordGrip:'#7a3808', label:'#80b0f0' },
+    purple: { armor:'#6a2a8a', detail:'#9848c0', leg:'#521870', boot:'#1a0828', belt:'#280a38', visor:'#08040e', plume:'#f0c030', swordGrip:'#380858', label:'#c080f0' },
+    gold:   { armor:'#b88a10', detail:'#e8c040', leg:'#987008', boot:'#282008', belt:'#382808', visor:'#0e0c04', plume:'#c82020', swordGrip:'#4a3008', label:'#f0d060' },
+    silver: { armor:'#909098', detail:'#c0c0cc', leg:'#707078', boot:'#202028', belt:'#282830', visor:'#0a0a10', plume:'#c02020', swordGrip:'#303038', label:'#d0d0e0' },
+    orange: { armor:'#c06018', detail:'#f09040', leg:'#a04810', boot:'#281408', belt:'#301808', visor:'#100804', plume:'#2050cc', swordGrip:'#5a2808', label:'#f0a060' },
+  };
+  const c = C[key] || C.blue;
+  const shieldCol  = SHIELD_COLS[shieldKey || key] || SHIELD_COLS.blue;
+  const detailCol  = SHIELD_DETAIL_COLS[detailKey] || SHIELD_DETAIL_COLS.gold;
+  const plumeCol   = PLUME_COLS[plumeKey] || PLUME_COLS.red;
+  return {
+    armor:c.armor, outline:'#0a0a14', detail:c.detail,
+    leg:c.leg, boot:c.boot, belt:c.belt,
+    beltBuckle:'#c8a020', rivet:'#c8a020', skin:'#e8c080',
+    visor:c.visor, plume:plumeCol,
+    shield:shieldCol, shieldBoss:detailCol, shieldDetail:detailCol,
+    swordGrip:c.swordGrip, swordMetal:'#c8a828', blade:'#dce2f0',
+    label:c.label,
+  };
+}
+
+// ─── AUDIO ───────────────────────────────────────────────────────────────────
+const AC = new (window.AudioContext || window.webkitAudioContext)();
+window.addEventListener('keydown', () => { if (AC.state === 'suspended') AC.resume(); });
+
+// Master gain so all sfx share one output node
+const masterGain = AC.createGain();
+masterGain.gain.value = 0.8;
+masterGain.connect(AC.destination);
+
+function _noise(dur) {
+  const buf = AC.createBuffer(1, Math.ceil(AC.sampleRate * dur), AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+}
+function _env(gain, t, atk, peak, decay, end) {
+  gain.setValueAtTime(0, t);
+  gain.linearRampToValueAtTime(peak, t + atk);
+  gain.exponentialRampToValueAtTime(Math.max(end, 0.0001), t + atk + decay);
+}
+
+function sfxWhoosh(isBash) {
+  const t = AC.currentTime;
+  const src = AC.createBufferSource();
+  src.buffer = _noise(isBash ? 0.22 : 0.18);
+  const bp = AC.createBiquadFilter();
+  bp.type = 'bandpass'; bp.Q.value = isBash ? 0.7 : 1.4;
+  bp.frequency.setValueAtTime(isBash ? 260 : 1400, t);
+  bp.frequency.exponentialRampToValueAtTime(isBash ? 90 : 320, t + (isBash ? 0.22 : 0.17));
+  const g = AC.createGain();
+  _env(g.gain, t, 0.01, isBash ? 0.7 : 0.4, isBash ? 0.2 : 0.15, 0.001);
+  src.connect(bp); bp.connect(g); g.connect(masterGain);
+  src.start(t); src.stop(t + 0.28);
+}
+
+function sfxClang() {
+  const t = AC.currentTime;
+  // Metallic ring: stacked detuned sine tones
+  for (const [freq, vol, decay] of [[760,0.18,0.55],[1180,0.13,0.40],[1920,0.09,0.28],[2740,0.06,0.18]]) {
+    const osc = AC.createOscillator(); osc.type = 'sine'; osc.frequency.value = freq;
+    const g = AC.createGain();
+    _env(g.gain, t, 0.002, vol, decay, 0.001);
+    osc.connect(g); g.connect(masterGain);
+    osc.start(t); osc.stop(t + 0.7);
+  }
+  // Transient noise crunch
+  const src = AC.createBufferSource(); src.buffer = _noise(0.03);
+  const hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2500;
+  const g2 = AC.createGain(); _env(g2.gain, t, 0.001, 0.35, 0.025, 0.001);
+  src.connect(hp); hp.connect(g2); g2.connect(masterGain);
+  src.start(t); src.stop(t + 0.04);
+}
+
+function sfxHit(heavy) {
+  const t = AC.currentTime;
+  // Low thud
+  const osc = AC.createOscillator(); osc.type = 'sine';
+  osc.frequency.setValueAtTime(heavy ? 90 : 130, t);
+  osc.frequency.exponentialRampToValueAtTime(heavy ? 25 : 40, t + 0.18);
+  const g = AC.createGain(); _env(g.gain, t, 0.002, heavy ? 0.75 : 0.55, 0.16, 0.001);
+  osc.connect(g); g.connect(masterGain); osc.start(t); osc.stop(t + 0.22);
+  // Mid crunch
+  const src = AC.createBufferSource(); src.buffer = _noise(0.07);
+  const bp = AC.createBiquadFilter(); bp.type = 'bandpass';
+  bp.frequency.value = heavy ? 400 : 650; bp.Q.value = 0.6;
+  const g2 = AC.createGain(); _env(g2.gain, t, 0.001, heavy ? 0.5 : 0.35, 0.06, 0.001);
+  src.connect(bp); bp.connect(g2); g2.connect(masterGain);
+  src.start(t); src.stop(t + 0.09);
+}
+
+function sfxSever() {
+  sfxHit(false);
+  const t = AC.currentTime + 0.025;
+  // Wet squelch
+  const src = AC.createBufferSource(); src.buffer = _noise(0.14);
+  const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
+  const g = AC.createGain(); _env(g.gain, t, 0.005, 0.45, 0.12, 0.001);
+  src.connect(lp); lp.connect(g); g.connect(masterGain);
+  src.start(t); src.stop(t + 0.16);
+}
+
+function sfxDeath() {
+  sfxHit(true);
+  const t = AC.currentTime + 0.04;
+  // Deep boom
+  const osc = AC.createOscillator(); osc.type = 'sine';
+  osc.frequency.setValueAtTime(55, t); osc.frequency.exponentialRampToValueAtTime(18, t + 0.4);
+  const g = AC.createGain(); _env(g.gain, t, 0.005, 0.9, 0.38, 0.001);
+  osc.connect(g); g.connect(masterGain); osc.start(t); osc.stop(t + 0.5);
+  // Splatter noise
+  const src = AC.createBufferSource(); src.buffer = _noise(0.18);
+  const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+  const g2 = AC.createGain(); _env(g2.gain, t, 0.002, 0.55, 0.15, 0.001);
+  src.connect(lp); lp.connect(g2); g2.connect(masterGain);
+  src.start(t); src.stop(t + 0.2);
+}
+
+function sfxJump() {
+  const t = AC.currentTime;
+  const osc = AC.createOscillator(); osc.type = 'sine';
+  osc.frequency.setValueAtTime(200, t); osc.frequency.exponentialRampToValueAtTime(380, t + 0.1);
+  const g = AC.createGain(); _env(g.gain, t, 0.005, 0.18, 0.1, 0.001);
+  osc.connect(g); g.connect(masterGain); osc.start(t); osc.stop(t + 0.15);
+  // boot scuff
+  const src = AC.createBufferSource(); src.buffer = _noise(0.05);
+  const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 400;
+  const g2 = AC.createGain(); _env(g2.gain, t, 0.001, 0.25, 0.045, 0.001);
+  src.connect(lp); lp.connect(g2); g2.connect(masterGain);
+  src.start(t); src.stop(t + 0.06);
+}
+
+function sfxLand() {
+  const t = AC.currentTime;
+  const src = AC.createBufferSource(); src.buffer = _noise(0.08);
+  const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 280;
+  const g = AC.createGain(); _env(g.gain, t, 0.001, 0.45, 0.07, 0.001);
+  src.connect(lp); lp.connect(g); g.connect(masterGain);
+  src.start(t); src.stop(t + 0.1);
+}
+
+function sfxExhaust() {
+  const t = AC.currentTime;
+  for (let i = 0; i < 3; i++) {
+    const d = i * 0.09;
+    const osc = AC.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 160;
+    const g = AC.createGain(); _env(g.gain, t+d, 0.01, 0.18, 0.07, 0.001);
+    osc.connect(g); g.connect(masterGain); osc.start(t+d); osc.stop(t+d+0.1);
+  }
+}
+
+function sfxBeep(n) {
+  const t = AC.currentTime;
+  const freq = n === 1 ? 880 : n === 2 ? 660 : 440;
+  const osc = AC.createOscillator(); osc.type = 'sine'; osc.frequency.value = freq;
+  const g = AC.createGain(); _env(g.gain, t, 0.005, 0.28, 0.22, 0.001);
+  osc.connect(g); g.connect(masterGain); osc.start(t); osc.stop(t + 0.28);
+}
+
+function sfxFight() {
+  const t = AC.currentTime;
+  for (const [d, f] of [[0,440],[0.1,660],[0.2,880]]) {
+    const osc = AC.createOscillator(); osc.type = 'square'; osc.frequency.value = f;
+    const g = AC.createGain(); _env(g.gain, t+d, 0.005, 0.14, 0.18, 0.001);
+    osc.connect(g); g.connect(masterGain); osc.start(t+d); osc.stop(t+d+0.22);
+  }
+}
+
+function sfxVictory() {
+  const t = AC.currentTime;
+  for (const [d, f] of [[0,523],[0.13,659],[0.26,784],[0.42,1047]]) {
+    const osc = AC.createOscillator(); osc.type = 'triangle'; osc.frequency.value = f;
+    const g = AC.createGain(); _env(g.gain, t+d, 0.008, 0.22, 0.32, 0.001);
+    osc.connect(g); g.connect(masterGain); osc.start(t+d); osc.stop(t+d+0.38);
+  }
+}
+
+function sfxTrumpet() {
+  // Brass fanfare — sawtooth with stacked harmonics, short 5-note call
+  const t = AC.currentTime;
+  const notes = [[0.0,392,0.14],[0.17,523,0.12],[0.31,659,0.12],[0.45,523,0.12],[0.60,784,0.65]];
+  for (const [delay, freq, dur] of notes) {
+    for (const [h, vol] of [[1,0.38],[2,0.22],[3,0.14],[4,0.09],[5,0.055],[6,0.03]]) {
+      const osc = AC.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = freq * h;
+      // Add slight vibrato to the held last note
+      if (delay > 0.55 && h === 1) {
+        const lfo = AC.createOscillator(); lfo.frequency.value = 5.5;
+        const lfoG = AC.createGain(); lfoG.gain.value = freq * 0.012;
+        lfo.connect(lfoG); lfoG.connect(osc.frequency);
+        lfo.start(t + delay + 0.15); lfo.stop(t + delay + dur + 0.1);
+      }
+      const g = AC.createGain();
+      g.gain.setValueAtTime(0, t + delay);
+      g.gain.linearRampToValueAtTime(vol * 0.28, t + delay + 0.02);
+      g.gain.setValueAtTime(vol * 0.24, t + delay + Math.max(0.02, dur - 0.04));
+      g.gain.exponentialRampToValueAtTime(0.0001, t + delay + dur + 0.06);
+      osc.connect(g); g.connect(masterGain);
+      osc.start(t + delay); osc.stop(t + delay + dur + 0.12);
+    }
+  }
+}
+
+// ─── SEVERED PART ────────────────────────────────────────────────────────────
+class SeveredPart {
+  constructor(type, x, y, vx, vy, facing, pal, helmetStyle, hasSword, plumeStyle) {
+    this.type        = type;
+    this.x=x; this.y=y; this.vx=vx; this.vy=vy;
+    this.angle       = 0;
+    this.angV        = (Math.random()-0.5) * 14;
+    this.facing      = facing;
+    this.pal         = pal;
+    this.helmetStyle = helmetStyle || 1;
+    this.plumeStyle  = plumeStyle  || 1;
+    this.hasSword    = hasSword !== false;
+    this.landed      = false;
+  }
+
+  update(dt) {
+    if (this.landed) {
+      // Smoothly lay flat: tween to nearest horizontal position (π/2 increments)
+      const target = Math.round((this.angle - Math.PI/2) / Math.PI) * Math.PI + Math.PI/2;
+      this.angle += (target - this.angle) * 0.1;
+      return;
+    }
+    // #17 blood trail while airborne
+    if (Math.random() < 0.55) {
+      particles.push(new Particle(
+        this.x + (Math.random()-0.5)*6, this.y + (Math.random()-0.5)*6,
+        (Math.random()-0.5)*30, (Math.random()-0.5)*30,
+        0.12 + Math.random()*0.18,
+        Math.random() < 0.6 ? '#cc1010' : '#7a0808',
+        1.5 + Math.random()*2
+      ));
+    }
+    this.vy += GRAVITY * dt;
+    this.x  += this.vx * dt;
+    this.y  += this.vy * dt;
+    this.angle += this.angV * dt;
+    if (this.y >= GROUND) {
+      this.y = GROUND; this.vy *= -0.4; this.vx *= 0.6; this.angV *= 0.22;  // #18 bouncier
+      if (Math.abs(this.vy) < 25) { this.vy = 0; this.landed = true; }
+    }
+  }
+
+  draw() {
+    const p = this.pal;
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.angle);
+    switch (this.type) {
+      case 'helmet': {
+        ctx.save();
+        ctx.scale(this.facing, 1);
+        const hs = this.helmetStyle;
+        if (hs === 2) {
+          // Great Helm
+          drawPlume(p, -30, this.plumeStyle);
+          ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2.5;
+          ctx.beginPath();
+          ctx.moveTo(-16,7); ctx.lineTo(-17,-16); ctx.lineTo(-13,-27); ctx.lineTo(13,-27); ctx.lineTo(17,-16); ctx.lineTo(16,7);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.roundRect(-16,-32,32,7,2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle=p.visor; ctx.fillRect(-15,-10,30,4); ctx.fillRect(-2,-28,4,17);
+          ctx.strokeStyle=p.outline; ctx.lineWidth=1.5;
+          ctx.beginPath(); ctx.moveTo(-16,-4); ctx.lineTo(16,-4); ctx.stroke();
+          ctx.fillStyle=p.visor;
+          for(const hx of [-8,-3,2,7]){ctx.beginPath();ctx.arc(hx,1,1.5,0,Math.PI*2);ctx.fill();}
+          ln(0,7,0,-32,p.detail,1.5);
+          ctx.fillStyle=p.rivet;
+          for(const rx of [-11,-5,0,5,11]){ctx.beginPath();ctx.arc(rx,-29,1.5,0,Math.PI*2);ctx.fill();}
+        } else if (hs === 3) {
+          // Bascinet
+          drawPlume(p, -38, this.plumeStyle);
+          ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2.5;
+          ctx.beginPath();
+          ctx.moveTo(-17,6); ctx.lineTo(-18,-16);
+          ctx.quadraticCurveTo(-15,-38,0,-40);
+          ctx.quadraticCurveTo(15,-38,18,-16);
+          ctx.lineTo(17,6); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2;
+          ctx.beginPath();
+          ctx.moveTo(-15,-8); ctx.lineTo(-15,2); ctx.lineTo(15,2); ctx.lineTo(15,-8);
+          ctx.quadraticCurveTo(7,-24,3,-30); ctx.lineTo(-3,-30); ctx.quadraticCurveTo(-7,-24,-15,-8);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle=p.visor; ctx.beginPath(); ctx.roundRect(-12,-10,24,3,1); ctx.fill();
+          ctx.fillStyle=p.rivet;
+          ctx.beginPath(); ctx.arc(-15,-8,2,0,Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(15,-8,2,0,Math.PI*2); ctx.fill();
+          ln(0,6,0,-40,p.detail,1.5);
+        } else if (hs === 4) {
+          // Sallet (front view)
+          drawPlume(p, -31, this.plumeStyle);
+          ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2.5;
+          ctx.beginPath(); ctx.arc(0,-14,17,Math.PI,0); ctx.lineTo(16,6); ctx.lineTo(-16,6); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(-17,-14); ctx.lineTo(-20,-9); ctx.lineTo(20,-9); ctx.lineTo(17,-14);
+          ctx.lineTo(15,-4); ctx.lineTo(-15,-4); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(-16,5); ctx.lineTo(-21,9); ctx.lineTo(21,9); ctx.lineTo(16,5); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle=p.visor;
+          ctx.beginPath(); ctx.roundRect(-12,-4,24,9,2); ctx.fill();
+          ln(0,-31,0,9,p.detail,1.5);
+          ctx.fillStyle=p.rivet;
+          for(const [rx,ry] of [[-15,7],[-5,7],[5,7],[15,7],[-17,-11],[17,-11]]){
+            ctx.beginPath();ctx.arc(rx,ry,1.5,0,Math.PI*2);ctx.fill();
+          }
+        } else {
+          // Armet (style 1)
+          drawPlume(p, -27, this.plumeStyle);
+          ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2.5;
+          ctx.beginPath(); ctx.arc(0,-12,17,Math.PI,0); ctx.lineTo(14,6); ctx.lineTo(-14,6); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ln(-14,-3,14,-3,p.detail,2);
+          for (const sx of [-1,1]) {
+            ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=1.5;
+            ctx.beginPath(); ctx.moveTo(sx*4,-3); ctx.lineTo(sx*15,-1); ctx.lineTo(sx*15,9); ctx.lineTo(sx*5,9); ctx.closePath(); ctx.fill(); ctx.stroke();
+          }
+          ctx.fillStyle=p.visor; ctx.strokeStyle=p.outline; ctx.lineWidth=1;
+          ctx.beginPath(); ctx.roundRect(-12,-11,7,3,1); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.roundRect(5,-11,7,3,1);   ctx.fill(); ctx.stroke();
+          ln(0,-14,0,6,p.detail,2);
+          rbox(-10,6,20,7,2,p.armor,p.outline,2);
+        }
+        ctx.restore();
+        break;
+      }
+      case 'head':
+        // Oval head — slightly wider than tall
+        ctx.fillStyle=p.skin; ctx.strokeStyle=p.outline; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.ellipse(0,-5,12,14,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        // Hair cap
+        ctx.fillStyle='#3a2808';
+        ctx.beginPath(); ctx.ellipse(0,-14,11,7,0,Math.PI,Math.PI*2); ctx.fill();
+        // Eyes — narrow, fierce
+        ctx.fillStyle='#2a1800';
+        ctx.beginPath(); ctx.ellipse(-4,-7,2.5,1.8,0,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(4,-7,2.5,1.8,0,0,Math.PI*2); ctx.fill();
+        // Scowl brows
+        ctx.strokeStyle='#2a1800'; ctx.lineWidth=1.8;
+        ctx.beginPath(); ctx.moveTo(-5,-10); ctx.lineTo(0,-9); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(5,-10); ctx.lineTo(0,-9); ctx.stroke();
+        // Grimace mouth
+        ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.moveTo(-5,1); ctx.quadraticCurveTo(0,4,5,1); ctx.stroke();
+        // Blood at neck cut (bottom of head)
+        ctx.fillStyle='#6b0a0a'; ctx.beginPath(); ctx.ellipse(0,7,8,5,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#cc1a1a'; ctx.beginPath(); ctx.ellipse(0,6,4,3,0,0,Math.PI*2); ctx.fill();
+        break;
+      case 'swordArm':
+        ctx.save(); ctx.scale(this.facing,1);
+        rbox(-5,-36,11,20,3,p.armor,p.outline,2);
+        rbox(-5,-16,10,16,3,p.armor,p.outline,2);
+        // Blood at cut end (top of upper arm)
+        ctx.fillStyle='#6b0a0a'; ctx.beginPath(); ctx.ellipse(0,-36,7,5,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#cc1a1a'; ctx.beginPath(); ctx.ellipse(0,-35,4,3,0,0,Math.PI*2); ctx.fill();
+        if (this.hasSword) {
+          rbox(-3,-2,8,12,2,p.swordGrip,p.outline,2);
+          circ(1,11,5,p.swordGrip,p.outline,2);
+          rbox(-12,-3,26,5,2,p.swordMetal,p.outline,2);
+          ctx.fillStyle=p.blade; ctx.strokeStyle=p.outline; ctx.lineWidth=1.5;
+          ctx.beginPath(); ctx.moveTo(-3.5,-3); ctx.lineTo(3.5,-3); ctx.lineTo(1.2,-52); ctx.lineTo(-1.2,-52); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ln(0,-5,0,-49,'#ffffff55',1);
+        }
+        ctx.restore();
+        break;
+      case 'shieldArm':
+        ctx.save(); ctx.scale(this.facing,1);
+        rbox(-5,-36,11,20,3,p.armor,p.outline,2);
+        rbox(-5,-16,10,16,3,p.armor,p.outline,2);
+        // Blood at cut end (top of upper arm)
+        ctx.fillStyle='#6b0a0a'; ctx.beginPath(); ctx.ellipse(0,-36,7,5,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#cc1a1a'; ctx.beginPath(); ctx.ellipse(0,-35,4,3,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle=p.shield; ctx.strokeStyle=p.outline; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(0,-32); ctx.lineTo(13,-24); ctx.lineTo(13,-8); ctx.quadraticCurveTo(6,4,0,8); ctx.quadraticCurveTo(-6,4,-13,-8); ctx.lineTo(-13,-24); ctx.closePath(); ctx.fill(); ctx.stroke();
+        circ(0,-12,4.5,p.shieldBoss,p.outline,2);
+        ctx.restore();
+        break;
+      case 'torso':
+        ctx.save(); ctx.scale(this.facing,1);
+        ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2.5;
+        ctx.beginPath();
+        ctx.moveTo(-18,-23); ctx.lineTo(18,-23); ctx.lineTo(14,23); ctx.lineTo(-14,23);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ln(0,-18,0,19,p.detail,1.5);
+        ln(-16,-5,16,-5,p.detail,1.5);
+        rbox(-14,19,28,8,2,p.belt,p.outline,2);
+        // Blood at neck cut (top of torso)
+        ctx.fillStyle='#6b0a0a'; ctx.beginPath(); ctx.ellipse(0,-23,9,6,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#cc1a1a'; ctx.beginPath(); ctx.ellipse(0,-22,5,4,0,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+        break;
+      case 'legL': case 'legR':
+        rbox(-5,-42,11,22,3,p.leg,p.outline,2);
+        rbox(-5,-20,10,20,3,p.leg,p.outline,2);
+        ctx.fillStyle=p.boot; ctx.strokeStyle=p.outline; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.roundRect(-6,-3,19,9,2); ctx.fill(); ctx.stroke();
+        // Blood at cut end (top of upper leg)
+        ctx.fillStyle='#6b0a0a'; ctx.beginPath(); ctx.ellipse(0,-42,7,5,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#cc1a1a'; ctx.beginPath(); ctx.ellipse(0,-41,4,3,0,0,Math.PI*2); ctx.fill();
+        break;
+    }
+    ctx.restore();
+  }
+}
+
+// ─── PARTICLES ───────────────────────────────────────────────────────────────
+const particles = [];
+
+class Particle {
+  constructor(x, y, vx, vy, life, color, size) {
+    this.x=x; this.y=y; this.vx=vx; this.vy=vy;
+    this.life=life; this.maxLife=life;
+    this.color=color; this.size=size;
+  }
+  update(dt) {
+    this.vy += GRAVITY * 0.6 * dt;
+    this.x  += this.vx * dt;
+    this.y  += this.vy * dt;
+    this.life -= dt;
+    if (this.y > GROUND) { this.y=GROUND; this.vy*=-0.25; this.vx*=0.6; }
+  }
+  draw() {
+    const alpha = Math.max(0, this.life/this.maxLife);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = this.color;
+    const s = this.size * alpha;
+    ctx.fillRect(this.x-s/2, this.y-s/2, s, s);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function emitSparks(x, y) {
+  for (let i=0; i<10; i++) {
+    const ang = Math.random()*Math.PI*2;
+    const spd = 100+Math.random()*250;
+    particles.push(new Particle(
+      x, y,
+      Math.cos(ang)*spd, Math.sin(ang)*spd - 80,
+      0.1+Math.random()*0.18,
+      Math.random()<0.45 ? '#ffe060' : Math.random()<0.7 ? '#ffffff' : '#c0c0ff',  // #20
+      2+Math.random()*2
+    ));
+  }
+}
+
+function emitBlood(x, y, count) {
+  for (let i=0; i<count; i++) {
+    const ang = -Math.PI/2 + (Math.random()-0.5)*Math.PI*1.2;
+    const spd = 80+Math.random()*300;
+    particles.push(new Particle(
+      x, y,
+      Math.cos(ang)*spd, Math.sin(ang)*spd,
+      0.4+Math.random()*0.5,
+      Math.random()<0.5 ? '#cc1010' : Math.random()<0.7 ? '#880808' : '#4a0404',  // #20
+      2.5+Math.random()*3.5
+    ));
+  }
+}
+
+// ─── PLUME DRAW HELPER ────────────────────────────────────────────────────────
+// by = y of plume base; style 0 = none, 1 = swept (default)
+function drawPlume(p, by, style) {
+  if (!style || style === 0) return; // No plumage
+  // Style 1: Swept back — arches up then sweeps behind
+  ctx.strokeStyle = p.plume; ctx.lineCap = 'round';
+  ctx.lineWidth=5;   ctx.beginPath(); ctx.moveTo(-3,by);   ctx.bezierCurveTo(-26,by-29,-34,by-17,-20,by+15); ctx.stroke();
+  ctx.lineWidth=3.5; ctx.beginPath(); ctx.moveTo( 0,by+2); ctx.bezierCurveTo(-22,by-25,-30,by-13,-16,by+19); ctx.stroke();
+  ctx.lineWidth=2;   ctx.beginPath(); ctx.moveTo( 3,by+4); ctx.bezierCurveTo(-16,by-19,-24,by-7, -10,by+23); ctx.stroke();
+  ctx.lineCap = 'butt';
+}
+
+// ─── FLYING SWORD ────────────────────────────────────────────────────────────
+class FlyingSword {
+  constructor(x, y, vx, vy, owner, pal) {
+    this.x=x; this.y=y; this.vx=vx; this.vy=vy;
+    this.angle  = 0;
+    this.angV   = owner.facing * (8 + Math.random()*6);
+    this.owner  = owner;
+    this.pal    = pal;
+    this.hit    = false;
+    this.landed = false;
+  }
+  update(dt) {
+    if (this.landed) {
+      const target = Math.round((this.angle - Math.PI/2) / Math.PI) * Math.PI + Math.PI/2;
+      this.angle += (target - this.angle) * 0.1;
+      return;
+    }
+    this.vy += GRAVITY * dt;
+    this.x  += this.vx * dt;
+    this.y  += this.vy * dt;
+    this.angle += this.angV * dt;
+    if (this.y >= GROUND) {
+      this.y = GROUND; this.vy *= -0.2; this.vx *= 0.55; this.angV *= 0.3;
+      if (Math.abs(this.vy) < 20) { this.vy = 0; this.landed = true; }
+    }
+    this.x = Math.max(10, Math.min(W-10, this.x));
+  }
+  draw() {
+    const p = this.pal;
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.angle);
+    // Grip
+    rbox(-3,-2,8,14,2,p.swordGrip,p.outline,2);
+    circ(1,13,5,p.swordGrip,p.outline,2);
+    // Crossguard
+    rbox(-12,-3,26,5,2,p.swordMetal,p.outline,2);
+    // Blade
+    ctx.fillStyle=p.blade; ctx.strokeStyle=p.outline; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(-3.5,-3); ctx.lineTo(3.5,-3); ctx.lineTo(1.2,-58); ctx.lineTo(-1.2,-58); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ln(0,-5,0,-55,'#ffffff55',1);
+    ctx.restore();
+  }
+}
+
+// ─── KNIGHT ──────────────────────────────────────────────────────────────────
+class Knight {
+  constructor(x, facing, ctrl, colorKey, label) {
+    this.startX      = x;
+    this.startF      = facing;
+    this.ctrl        = ctrl;
+    this.label       = label;
+    this.colorKey    = colorKey;
+    this.shieldKey   = colorKey;
+    this.detailKey   = 'gold';
+    this.plumeKey    = 'red';
+    this.plumeStyle  = 1;
+    this.helmetStyle = 1;
+    this.colorName   = colorKey.charAt(0).toUpperCase() + colorKey.slice(1);
+    this.pal         = makeKnightPalette(colorKey, colorKey, 'gold', 'red');
+    this.severed     = [];   // persists across rounds — never cleared on reset
+    this.reset();
+  }
+
+  _rebuildPal() {
+    this.pal = makeKnightPalette(this.colorKey, this.shieldKey, this.detailKey, this.plumeKey);
+  }
+
+  setColor(key) {
+    this.colorKey  = key;
+    this.colorName = key.charAt(0).toUpperCase() + key.slice(1);
+    this._rebuildPal();
+  }
+
+  setShieldColor(key)  { this.shieldKey  = key; this._rebuildPal(); }
+  setShieldDetail(key) { this.detailKey  = key; this._rebuildPal(); }
+  setPlumeColor(key)   { this.plumeKey   = key; this._rebuildPal(); }
+  setPlumeStyle(n)     { this.plumeStyle  = n; }
+  setHelmet(n)         { this.helmetStyle = n; }
+
+  reset() {
+    this.x = this.startX; this.y = GROUND;
+    this.vx = 0; this.vy = 0;
+    this.facing   = this.startF;
+    this.onGround = true;
+    this.crouching= false;
+    this.walkPhase= 0;
+    this.isWalking= false;
+    this.isMoving = false;
+
+    this.stamina  = STAMINA_MAX;
+    this.hasSword = true;
+
+    this.parts = {
+      helmet: true, head: true, torso: true,
+      swordArm: true, shieldArm: true,
+      legL: true, legR: true,
+    };
+    // Note: this.severed is NOT reset — parts stay on the ground across rounds
+    this.hitFlash  = 0;
+    this.stagger   = 0;
+    this.atk       = null; // { type, phase, timer, hit, whooshPlayed }
+    this.blk       = null; // { zone }
+    this.dead        = false;
+    this.exhausted   = false;
+    this.bashHits    = 0;
+    this.wasOnGround = true;
+    this.idleT       = Math.random() * Math.PI * 2;
+    this.breathStress = 0;  // 0=rested, 1=heavily winded — decays very slowly
+    this.helmetKnockedOff = false; // bloody face when true
+    this.dents = { torso:0, swordArm:0, shieldArm:0, legL:0, legR:0 }; // hit counts per part
+    this.throwCooldown  = 0;   // #10 seconds before own sword can be picked up
+    this.counterWindow  = 0;   // #15 seconds of fast-riposte window after block
+    this.atkBuffer      = null; // #12 { type, timer } queued attack
+  }
+
+  // ── Update ─────────────────────────────────────────────────────────────────
+  update(dt) {
+    if (this.dead) { for (const s of this.severed) s.update(dt); return; }
+
+    this.idleT += dt;
+    if (this.throwCooldown > 0) this.throwCooldown -= dt;  // #10
+    if (this.counterWindow > 0) this.counterWindow -= dt;  // #15
+    const c = this.ctrl;
+
+    // Stagger push-back
+    if (this.stagger > 0) {
+      this.stagger -= dt;
+      this.vx = -this.facing * STAGGER_PUSH;  // #3
+    }
+
+    // Movement
+    let mx = 0;
+    if (this.stagger <= 0) {
+      if (keys[c.left])  mx -= 1;
+      if (keys[c.right]) mx += 1;
+    }
+    this.crouching = !!(keys[c.down] && this.onGround && (this.parts.legL || this.parts.legR));
+
+    const bothLegs = this.parts.legL && this.parts.legR;
+    const anyLeg   = this.parts.legL || this.parts.legR;
+    const spd = !anyLeg ? 0
+              : !bothLegs ? (this.crouching ? 25 : ONE_LEG_SPD)
+              : this.crouching ? CROUCH_SPD : WALK_SPD;
+
+    this.vx = mx * spd;
+    this.isMoving  = (mx !== 0) && this.onGround;
+    this.isWalking = this.isMoving && !this.crouching;
+
+    if (keys[c.jump] && this.onGround && !this.crouching && bothLegs && this.stagger <= 0) {
+      this.vy = JUMP_VEL; this.onGround = false; sfxJump();
+    }
+
+    this.wasOnGround = this.onGround;
+    this.vy += GRAVITY * dt;
+    this.x  += this.vx * dt;
+    this.y  += this.vy * dt;
+
+    // When legless, torso bottom (y-54) should rest on the ground
+    const floor = (!this.parts.legL && !this.parts.legR) ? GROUND + 54 : GROUND;
+    if (this.y >= floor) { this.y = floor; this.vy = 0; this.onGround = true; }
+    if (!this.wasOnGround && this.onGround) sfxLand();
+    this.x = Math.max(70, Math.min(W-70, this.x));
+
+    if (this.isMoving) this.walkPhase += dt * (this.crouching ? 6 : 9);
+
+    // Stamina regen; block drains only when not exhausted (exhaustion auto-drops block)
+    let blkDrain = (!this.exhausted && this.blk)
+      ? (this.parts.shieldArm ? BLOCK_DRAIN : SWORDBLOCK_DRAIN) : 0;
+    if (this.crouching && this.blk) blkDrain *= 0.4; // #11 crouch-block costs 40% normal drain
+    this.stamina = Math.max(0, Math.min(STAMINA_MAX,
+      this.stamina + (STAMINA_REGEN - blkDrain) * dt));
+
+    // Exhaustion: triggered at 0, cleared only once stamina recovers to threshold
+    const wasExhausted = this.exhausted;
+    if (this.stamina <= STAMINA_EXHAUST_AT) this.exhausted = true;
+    if (this.exhausted && this.stamina >= STAMINA_RECOVER_TO) this.exhausted = false;
+    if (!wasExhausted && this.exhausted) sfxExhaust();
+
+    // breathStress: builds up quickly when winded, decays very slowly when well-rested
+    const missingLimbs = ['swordArm','shieldArm','legL','legR'].filter(p => !this.parts[p]).length;
+    const currentStress = Math.max(1 - this.stamina / STAMINA_MAX, missingLimbs * 0.25);
+    const wellRested = this.stamina > STAMINA_MAX * 0.85;
+    if (currentStress > this.breathStress) {
+      // Ramp up quickly when getting tired
+      this.breathStress = Math.min(1, this.breathStress + (currentStress - this.breathStress) * dt * 3);
+    } else if (wellRested) {
+      // Decay very slowly only when stamina is high and sustained
+      this.breathStress = Math.max(0, this.breathStress - dt * 0.025);
+    }
+
+    // ── Throw sword / pick up ─────────────────────────────────────────────────
+    if (keys[c.throw] && !prevKeys[c.throw] && this.parts.swordArm) {
+      let pickedUp = false;
+      if (this.crouching && !this.hasSword) {
+        for (let i = flyingSwords.length - 1; i >= 0; i--) {
+          const sw = flyingSwords[i];
+          if (sw.owner === this && sw.landed && this.throwCooldown <= 0 && Math.abs(sw.x - this.x) < 60) {  // #10
+            flyingSwords.splice(i, 1);
+            this.hasSword = true;
+            pickedUp = true;
+            sfxClang();
+            break;
+          }
+        }
+      }
+      const throwCost = ATK_COST * 2;
+      if (!pickedUp && this.hasSword && !this.atk && !this.exhausted && this.stamina >= throwCost) {
+        this.hasSword = false;
+        this.stamina = Math.max(0, this.stamina - throwCost);
+        this.throwCooldown = 1.5;
+        flyingSwords.push(new FlyingSword(
+          this.x + this.facing * 28, this.y - 95,
+          this.facing * 600, -60, this, this.pal));
+        sfxWhoosh(false);
+      }
+    }
+
+    // ── Attack input ─────────────────────────────────────────────────────────
+    const _hasSwordAtk = this.parts.swordArm && this.hasSword;
+    const _atkCost     = _hasSwordAtk ? ATK_COST : BASH_COST;
+    const _noArms = !this.parts.swordArm && !this.parts.shieldArm;
+    const _oneLeg = (this.parts.legL ? 1 : 0) + (this.parts.legR ? 1 : 0) === 1;
+    const _getType = swordType => {
+      if (_hasSwordAtk) return swordType;
+      if (this.parts.swordArm) {
+        if (swordType === 'low') return 'punchL';
+        if (swordType === 'mid') return 'punchM';
+        return 'punchH';
+      }
+      // No sword arm — bash with shield arm, or kick/headbutt if no arms at all
+      if (!_noArms) return 'bash';
+      return (_oneLeg) ? 'headbutt' : 'kick';
+    };
+    const _keyMap = { high:c.atkH, mid:c.atkM, low:c.atkL, h1:c.h1, h2:c.h2, h3:c.h3, h4:c.h4, h5:c.h5, bash:c.atkM, punchH:c.atkH, punchM:c.atkM, punchL:c.atkL, kick:c.atkM, headbutt:c.atkM };
+
+    if (!this.atk && !this.blk && this.stagger <= 0 && !this.exhausted) {
+      let type = null;
+      if (this.stamina >= _atkCost) {
+        if      (keys[c.atkH] && !prevKeys[c.atkH]) type = _getType('high');
+        else if (keys[c.atkM] && !prevKeys[c.atkM]) type = _getType('mid');
+        else if (keys[c.atkL] && !prevKeys[c.atkL]) type = _getType('low');
+        else if (keys[c.h1]   && !prevKeys[c.h1])   type = _getType('h1');
+        else if (keys[c.h2]   && !prevKeys[c.h2])   type = _getType('h2');
+        else if (keys[c.h3]   && !prevKeys[c.h3])   type = _getType('h3');
+        else if (keys[c.h4]   && !prevKeys[c.h4])   type = _getType('h4');
+        else if (keys[c.h5]   && !prevKeys[c.h5])   type = _getType('h5');
+        // Consume buffered attack if no new input #12
+        if (!type && this.atkBuffer) {
+          type = this.atkBuffer.type;
+          this.atkBuffer = null;
+        }
+      }
+      if (type) {
+        this.atk = { type, phase:'windup', timer:0, hit:false, whooshPlayed:false, key: _keyMap[type] || c.atkM };  // #16
+        this.stamina = Math.max(0, this.stamina - _atkCost);
+      }
+    } else {
+      // #12 Buffer attack input during recovery/stagger (not during block or exhaustion)
+      if (!this.blk && !this.exhausted && this.stamina >= _atkCost) {
+        let btype = null;
+        if      (keys[c.atkH] && !prevKeys[c.atkH]) btype = _getType('high');
+        else if (keys[c.atkM] && !prevKeys[c.atkM]) btype = _getType('mid');
+        else if (keys[c.atkL] && !prevKeys[c.atkL]) btype = _getType('low');
+        if (btype) this.atkBuffer = { type: btype, timer: 0.08 };
+      }
+    }
+    // Tick and expire buffer #12
+    if (this.atkBuffer) {
+      this.atkBuffer.timer -= dt;
+      if (this.atkBuffer.timer <= 0) this.atkBuffer = null;
+    }
+
+    // ── Attack state machine ──────────────────────────────────────────────────
+    if (this.atk) {
+      // Extended parry: drain stamina heavily; release key or exhaust → recover
+      if (this.atk.phase === 'extended') {
+        this.stamina = Math.max(0, this.stamina - 70 * dt);
+        if (!keys[this.atk.key] || this.stamina <= 0) {
+          this.atk.phase = 'recover'; this.atk.timer = 0;
+        }
+      } else {
+        this.atk.timer += dt;
+        // #16 whoosh at mid-active
+        if (this.atk.phase === 'active' && !this.atk.whooshPlayed && this.atk.timer >= ACTIVE_T * 0.5) {
+          this.atk.whooshPlayed = true;
+          sfxWhoosh(this.atk.type === 'bash' || this.atk.type.startsWith('punch') || this.atk.type === 'kick' || this.atk.type === 'headbutt');
+        }
+        // #15 faster windup during counter window
+        const wuT = (this.counterWindow > 0) ? WINDUP_T * 0.45 : WINDUP_T;
+        const limits = { windup: wuT, active: ACTIVE_T, recover: RECOVER_T };
+        if (this.atk.timer >= limits[this.atk.phase]) {
+          this.atk.timer = 0;
+          if (this.atk.phase === 'windup') {
+            this.atk.phase = 'active';
+          } else if (this.atk.phase === 'active') {
+            // Hold key at end of active → extend blade as parry
+            if (keys[this.atk.key] && !this.atk.hit && this.stamina > 0
+                && this.parts.swordArm && this.hasSword) {
+              this.atk.phase = 'extended';
+            } else {
+              this.atk.phase = 'recover';
+            }
+          } else {
+            this.atk = null;
+          }
+        }
+      }
+    }
+
+    // ── Block input ───────────────────────────────────────────────────────────
+    if (!this.atk && this.stagger <= 0) {
+      let zone = null;
+      if (!this.exhausted) {
+        if      (keys[c.blkH]) zone = 'high';
+        else if (keys[c.blkM]) zone = 'mid';
+        else if (keys[c.blkL]) zone = 'low';
+      } else if (keys[c.blkM]) {
+        zone = 'mid'; // #7 exhausted: mid-only block, no stamina cost
+      }
+      this.blk = zone ? { zone } : null;
+    } else {
+      this.blk = null;
+    }
+
+    if (this.hitFlash > 0) this.hitFlash -= dt;
+
+    for (const s of this.severed) s.update(dt);
+  }
+
+  // ── Hitbox helpers ──────────────────────────────────────────────────────────
+  getAtkBox() {
+    if (!this.atk || this.atk.phase !== 'active') return null;
+    const f = this.facing;
+    const reach = (this.parts.swordArm && this.hasSword) ? 128 : 72;
+    const lx = f > 0 ? this.x + 14 : this.x - 14 - reach;
+    const z = this.atk.type;
+    const hz = (z==='h1'||z==='h2'||z==='h3'||z==='h4'||z==='h5') ? 'high' : z;
+    if (hz === 'high') return { x:lx, y:this.y-142, w:reach, h:54 };
+    if (hz === 'low')  return { x:lx, y:this.y-60,  w:reach, h:60 };
+    /* mid/bash */     return { x:lx, y:this.y-102, w:reach, h:50 };
+  }
+
+  getBodyBoxes() {
+    const x=this.x, y=this.y, f=this.facing;
+    return {
+      helmet:    { x:x-14, y:y-140, w:28, h:22 },
+      head:      { x:x-14, y:y-122, w:28, h:28 },
+      torso:     { x:x-18, y:y-100, w:36, h:46 },
+      swordArm:  { x:x+(f>0?10:-52), y:y-98, w:42, h:44 },
+      shieldArm: { x:x+(f>0?-52:10), y:y-98, w:42, h:44 },
+      legL:      { x:x-14, y:y-56,  w:14, h:56 },
+      legR:      { x:x+0,  y:y-56,  w:14, h:56 },
+    };
+  }
+
+  // ── Receive hit ─────────────────────────────────────────────────────────────
+  receiveHit(zone) {
+    this.hitFlash = 0.28;
+    if (zone === 'high') {
+      if      (this.parts.helmet)   this.severPart('helmet');
+      else if (this.parts.head)     this.severPart('head');
+      else                          { this.stagger = 0.20; sfxHit(false); }  // #14
+    } else if (zone === 'mid' || zone === 'bash') {
+      if      (this.parts.swordArm)  this.severPart('swordArm');
+      else if (this.parts.shieldArm) this.severPart('shieldArm');
+      else if (this.parts.torso)     this.severPart('torso');
+      else                           { this.stagger = 0.35; sfxHit(true); }  // #14
+    } else { // low
+      if      (this.parts.legL && this.parts.legR)
+        this.severPart(Math.random() < 0.5 ? 'legL' : 'legR');
+      else if (this.parts.legL)  this.severPart('legL');
+      else if (this.parts.legR)  this.severPart('legR');
+      else                       { this.stagger = 0.25; sfxHit(false); }  // #14
+    }
+  }
+
+  severPart(part) {
+    if (!this.parts[part]) return;
+    this.parts[part] = false;
+    const boxes = this.getBodyBoxes();
+    const b = boxes[part];
+    if (!b) return;
+    const cx = b.x + b.w/2, cy = b.y + b.h/2;
+    // Torso chest-kill: slow fall-over; other parts: explosive sever
+    const isTorsoKill = (part === 'torso');
+    const vx = isTorsoKill ? -this.facing * (20 + Math.random()*15) : -this.facing * (60 + Math.random()*100);
+    const vy = isTorsoKill ? -55 - Math.random()*30 : -220 - Math.random()*140;
+    this.severed.push(new SeveredPart(part, cx, cy, vx, vy, this.facing, this.pal, this.helmetStyle, this.hasSword, this.plumeStyle));
+    emitBlood(cx, cy, part === 'torso' ? 24 : 14);
+    const wasAlive = !this.dead;
+    if (part === 'helmet') this.helmetKnockedOff = true; // bloody face after this
+    if (part === 'head' || part === 'torso') {
+      if (!this.dead) { sfxDeath(); triggerShake(3, 0.18); triggerFlicker(1.0); }
+      this.dead = true;
+    } else {
+      sfxSever(); triggerShake(2, 0.12); triggerFlicker(0.8);
+    }
+    if (isTorsoKill) {
+      // Head and helmet fall with torso rather than scattering randomly
+      const allBoxes = this.getBodyBoxes();
+      for (const hp of ['helmet', 'head']) {
+        if (this.parts[hp]) {
+          this.parts[hp] = false;
+          const hb = allBoxes[hp];
+          if (hb) {
+            this.severed.push(new SeveredPart(hp,
+              hb.x + hb.w/2, hb.y + hb.h/2,
+              vx + (Math.random()-0.5)*10, vy * 0.9,
+              this.facing, this.pal, this.helmetStyle, this.hasSword, this.plumeStyle));
+          }
+        }
+      }
+    }
+    // On first death, slump all remaining intact parts so the body doesn't vanish
+    if (this.dead && wasAlive) {
+      for (const p of ['torso', 'swordArm', 'shieldArm', 'legL', 'legR']) {
+        if (this.parts[p]) {
+          this.parts[p] = false;
+          const bb = this.getBodyBoxes();
+          const bp = bb[p];
+          if (bp) {
+            const svx = isTorsoKill ? vx * 0.5 + (Math.random()-0.5)*15 : (Math.random()-0.5)*50;
+            const svy = isTorsoKill ? -20 - Math.random()*20 : -20 - Math.random()*60;
+            this.severed.push(new SeveredPart(p,
+              bp.x + bp.w/2, bp.y + bp.h/2, svx, svy,
+              this.facing, this.pal, this.helmetStyle, this.hasSword, this.plumeStyle));
+          }
+        }
+      }
+    }
+  }
+
+  // ── Draw ───────────────────────────────────────────────────────────────────
+  draw() {
+    // Draw severed bits
+    for (const s of this.severed) s.draw();
+
+    if (this.dead) return;
+
+    // Hit flash
+    const flash = this.hitFlash > 0 && Math.floor(this.hitFlash * 22) % 2 === 0;
+
+    // ── Dynamic edge lighting from torches ────────────────────────────────
+    // Draws knight to an offscreen canvas, then applies directional gradient
+    // overlays via source-atop so only the torch-facing EDGE of armor glows.
+    const fb = torchFlicker.timer > 0 ? torchFlicker.intensity * (torchFlicker.timer / 0.3) : 0;
+    const tNow = this.idleT;
+    const lights = [];
+    for (const [tx, ty] of TORCH_POSITIONS) {
+      const d = Math.hypot(this.x - tx, (this.y - 90) - (ty - 20));
+      if (d < 600) {
+        const f = 1 - d / 600;
+        const ph = tx * 0.017;
+        const pulse = 0.78 + 0.22 * (0.6 * Math.sin(tNow * 3.1 + ph)
+                                    + 0.4 * Math.sin(tNow * 7.3 + ph * 2));
+        const intensity = Math.min(1, f * f * pulse * (1 + fb * 0.8));
+        if (intensity > 0.02) {
+          const dx = tx - this.x;
+          const dy = (ty - 20) - (this.y - 70);
+          const len = Math.hypot(dx, dy) || 1;
+          lights.push({ nx: dx / len, ny: dy / len, intensity });
+        }
+      }
+    }
+
+    if (lights.length > 0) {
+      // Lazy-init offscreen canvas for lighting compositing
+      if (!this._lightCanvas) {
+        this._lightCanvas = document.createElement('canvas');
+        this._lightCanvas.width = 320;
+        this._lightCanvas.height = 300;
+        this._lightCtx = this._lightCanvas.getContext('2d');
+      }
+      const lc = this._lightCanvas;
+      const lx = this._lightCtx;
+      const oX = 160, oY = 250;
+
+      lx.clearRect(0, 0, lc.width, lc.height);
+
+      // Draw knight onto transparent offscreen canvas
+      const realCtx = ctx;
+      ctx = lx;
+      ctx.save();
+      ctx.translate(oX, oY);
+      if (flash) ctx.filter = 'brightness(4) saturate(0)';
+      ctx.scale(this.facing, 1);
+      this._drawAll();
+      ctx.filter = 'none';
+      ctx.restore();
+      ctx = realCtx;
+
+      // Apply directional edge lighting from each torch
+      const cY = oY - 70;
+      for (const light of lights) {
+        const reach = 90;
+        const x1 = oX + light.nx * reach;
+        const y1 = cY + light.ny * reach;
+        const x2 = oX - light.nx * reach;
+        const y2 = cY - light.ny * reach;
+        const I = light.intensity;
+
+        // Warm edge glow — fades from torch-facing edge toward center
+        lx.save();
+        lx.globalCompositeOperation = 'source-atop';
+        const grad = lx.createLinearGradient(x1, y1, x2, y2);
+        grad.addColorStop(0,    `rgba(255,200,90,${Math.min(0.80,I*0.85).toFixed(3)})`);
+        grad.addColorStop(0.12, `rgba(255,170,60,${Math.min(0.50,I*0.48).toFixed(3)})`);
+        grad.addColorStop(0.32, `rgba(255,140,40,${Math.min(0.18,I*0.15).toFixed(3)})`);
+        grad.addColorStop(0.55, 'rgba(255,120,30,0)');
+        lx.fillStyle = grad;
+        lx.fillRect(0, 0, lc.width, lc.height);
+        lx.restore();
+
+        // Bright specular highlight right at the edge
+        lx.save();
+        lx.globalCompositeOperation = 'source-atop';
+        const spec = lx.createLinearGradient(x1, y1, x2, y2);
+        spec.addColorStop(0,    `rgba(255,255,220,${Math.min(0.72,I*0.67).toFixed(3)})`);
+        spec.addColorStop(0.05, `rgba(255,240,180,${Math.min(0.38,I*0.35).toFixed(3)})`);
+        spec.addColorStop(0.12, 'rgba(255,210,140,0)');
+        lx.fillStyle = spec;
+        lx.fillRect(0, 0, lc.width, lc.height);
+        lx.restore();
+      }
+
+      // Blit composited knight onto main canvas
+      ctx.drawImage(lc, this.x - oX, this.y - oY);
+    } else {
+      // No torch light — draw directly to main canvas
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      if (flash) ctx.filter = 'brightness(4) saturate(0)';
+      ctx.scale(this.facing, 1);
+      this._drawAll();
+      ctx.filter = 'none';
+      ctx.restore();
+    }
+
+    this._drawStaminaBar();
+  }
+
+  _drawStaminaBar() {
+    const isLeft = this.startF > 0;
+    const bw = 200, bh = 10;
+    const bx = isLeft ? 18 : W - 18 - bw;
+    const by = H - 28;
+    // Background + fill
+    rbox(bx, by, bw, bh, 3, '#1a1a1a', '#333', 1);
+    const pct = this.stamina / STAMINA_MAX;
+    const col = pct > 0.5 ? '#38c038' : pct > 0.25 ? '#c0c020' : '#c02020';
+    if (pct > 0) rbox(bx, by, bw*pct, bh, 3, col, null);
+    // Label
+    ctx.font = "700 9px 'Cinzel', serif";
+    ctx.textAlign = isLeft ? 'left' : 'right';
+    ctx.fillStyle = this.pal.label;
+    ctx.fillText('The ' + this.colorName + ' Knight', isLeft ? bx : bx+bw, by - 4);
+    // Exhaustion pulse
+    if (this.exhausted) {
+      const pulse = Math.sin(Date.now() / 120) > 0;
+      ctx.strokeStyle = pulse ? '#ff4400' : '#881100';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(bx,by,bw,bh,3); ctx.stroke();
+      ctx.fillStyle = pulse ? '#ff6622' : '#aa2200';
+      ctx.textAlign = 'center';
+      ctx.fillText('EXHAUSTED', bx + bw/2, by + bh + 11);
+    } else {
+      ctx.strokeStyle='#555'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.roundRect(bx,by,bw,bh,3); ctx.stroke();
+    }
+  }
+
+  // ── Compute arm angle offsets ───────────────────────────────────────────────
+  _swordOffset() {
+    // Pose editor override — elbow and sword angle stored separately
+    if (this._poseArm !== undefined) return {
+      arm:   this._poseArm,
+      swrd:  this._poseSwordAngle ?? REST_SWRD,
+      elbow: this._poseElbow ?? -0.15,
+    };
+    // When holding no sword, rest with elbow bent in a boxing guard stance
+    const noSword = this.parts.swordArm && !this.hasSword;
+    const R = noSword
+      ? { arm: -0.3, swrd: -1.8, elbow: -1.8 }
+      : { arm: REST_ARM, swrd: REST_SWRD, elbow: -0.15 };
+    const mk = (arm, swrd) => ({ arm, swrd, elbow: noSword ? swrd : -0.15 });
+    if (!this.atk || this.atk.type === 'bash' || this.atk.type === 'kick' || this.atk.type === 'headbutt') return R;
+    const def = ATK_ANG[this.atk.type];
+    const t   = this.atk.timer;
+    if (this.atk.phase === 'windup')  return mk(
+      lerp(R.arm,       def.wu.arm,  t/WINDUP_T),
+      lerp(R.swrd,      def.wu.swrd, t/WINDUP_T),
+    );
+    if (this.atk.phase === 'active')  return mk(
+      lerp(def.wu.arm,  def.act.arm,  t/ACTIVE_T),
+      lerp(def.wu.swrd, def.act.swrd, t/ACTIVE_T),
+    );
+    if (this.atk.phase === 'extended') return mk(def.act.arm, def.act.swrd);
+    if (this.atk.phase === 'recover') return mk(
+      lerp(def.act.arm,  R.arm,  t/RECOVER_T),
+      lerp(def.act.swrd, R.swrd, t/RECOVER_T),
+    );
+    return R;
+  }
+
+  _shieldOffset() {
+    if (this.atk) return SHIELD_RETREAT; // shield goes behind during attack
+    if (this.blk) return BLK_ANG[this.blk.zone];
+    return 0;
+  }
+
+  _bashOffset() {
+    // bash: shield arm swings forward aggressively during active
+    if (!this.atk || this.atk.type !== 'bash') return 0;
+    if (this.atk.phase === 'windup')  return lerp(0, -0.3, this.atk.timer/WINDUP_T);
+    if (this.atk.phase === 'active')  return lerp(-0.3, -2.2, this.atk.timer/ACTIVE_T);
+    if (this.atk.phase === 'recover') return lerp(-2.2, 0, this.atk.timer/RECOVER_T);
+    return 0;
+  }
+
+  _kickOffset() {
+    // Returns {side, uA, kA} for the kicking leg, or null if no kick active
+    if (!this.atk || this.atk.type !== 'kick') return null;
+    const kickSide = this.parts.legR ? 1 : -1; // prefer right leg
+    const t = this.atk.timer;
+    if (this.atk.phase === 'windup')
+      return { side: kickSide, uA: lerp(kickSide * 0.06, -0.5, t / WINDUP_T), kA: lerp(0.12, 0.9, t / WINDUP_T) };
+    if (this.atk.phase === 'active')
+      return { side: kickSide, uA: lerp(-0.5, 1.1, t / ACTIVE_T), kA: lerp(0.9, 0.15, t / ACTIVE_T) };
+    if (this.atk.phase === 'extended')
+      return { side: kickSide, uA: 1.1, kA: 0.15 };
+    if (this.atk.phase === 'recover')
+      return { side: kickSide, uA: lerp(1.1, kickSide * 0.06, t / RECOVER_T), kA: lerp(0.15, 0.12, t / RECOVER_T) };
+    return null;
+  }
+
+  _headbuttOffset() {
+    // Returns {tx, ty} torso+head translation during headbutt
+    if (!this.atk || this.atk.type !== 'headbutt') return { tx: 0, ty: 0 };
+    const t = this.atk.timer;
+    if (this.atk.phase === 'windup')
+      return { tx: lerp(0, -5, t / WINDUP_T), ty: lerp(0, -3, t / WINDUP_T) };
+    if (this.atk.phase === 'active')
+      return { tx: lerp(-5, 20, t / ACTIVE_T), ty: lerp(-3, 6, t / ACTIVE_T) };
+    if (this.atk.phase === 'extended')
+      return { tx: 20, ty: 6 };
+    if (this.atk.phase === 'recover')
+      return { tx: lerp(20, 0, t / RECOVER_T), ty: lerp(6, 0, t / RECOVER_T) };
+    return { tx: 0, ty: 0 };
+  }
+
+  // ── _drawAll ────────────────────────────────────────────────────────────────
+  _drawAll() {
+    const p   = this.pal;
+    const pFor = () => p;
+    const ph  = this.walkPhase;
+    const wlk = this.isWalking;
+    const mov = this.isMoving;
+    const crc = this.crouching;
+    const air = !this.onGround;
+    const co  = crc ? 24 : 0;
+    // Breathing driven by breathStress (persistent — fades slowly after recovery)
+    const breathRate = 1.2 + this.breathStress * 1.1;  // half the rate increase
+    const breathAmp  = 1.2 + this.breathStress * 2.0;  // half the amplitude increase
+    const idle = !wlk && this.onGround;
+    const bt = this.idleT * breathRate;
+    // Each body region breathes with a slight phase offset so they don't move in perfect lockstep
+    const breath          = idle ? Math.sin(bt)        * breathAmp        : 0;
+    const breathSwordArm  = idle ? Math.sin(bt + 0.30) * breathAmp * 0.70 : 0;
+    const breathShieldArm = idle ? Math.sin(bt + 0.50) * breathAmp * 0.65 : 0;
+    const breathHead      = idle ? Math.sin(bt + 0.14) * breathAmp * 0.88 : 0;
+    const walkBob = wlk ? Math.sin(ph*2)*2.5 : 0;
+    const bob = wlk ? walkBob : breath;
+
+    const swordOff  = this._swordOffset();
+    const bashOff   = this._bashOffset();
+    const armSwing  = mov ? Math.sin(ph)*0.18 : 0;
+
+    // Shield target position in torso coords (belt=y0, head=y-44).
+    // Arm pivot is at (-17,-32) in torso; pass local = torso + (17,32).
+    let stx, sty;
+    if (this.atk?.type === 'bash') {
+      const t = Math.max(0, -bashOff / 2.2);
+      stx = lerp(-22, 48, t); sty = lerp(-6, -20, t);
+    } else if (this.blk) {
+      stx = 22;
+      sty = this.blk.zone === 'high' ? -50 : this.blk.zone === 'mid' ? -26 : -6;
+    } else {
+      stx = -8; sty = -6; // resting: closer to torso center
+    }
+
+    // Legs
+    const kickOff = this._kickOffset();
+    if (this.parts.legL) { const ka = (kickOff && kickOff.side === -1) ? { uA: kickOff.uA, kA: kickOff.kA } : null; this._drawLeg(-1, ph, mov, crc, air, co, pFor(-8), this._poseFeet?.L ?? ka); if (this.dents.legL > 0) { ctx.save(); ctx.translate(-8,-54+co); this._drawArmorDents(this.dents.legL,[[0,6],[-1,16],[1,26],[0,34],[-1,12]]); ctx.restore(); } }
+    if (this.parts.legR) { const ka = (kickOff && kickOff.side ===  1) ? { uA: kickOff.uA, kA: kickOff.kA } : null; this._drawLeg( 1, ph, mov, crc, air, co, pFor(8), this._poseFeet?.R ?? ka); if (this.dents.legR > 0) { ctx.save(); ctx.translate( 8,-54+co); this._drawArmorDents(this.dents.legR,[[0,6],[1,16],[-1,26],[0,34],[1,12]]); ctx.restore(); } }
+
+    // Torso
+    const tY = -54 + co + bob;
+    const hbOff = this._headbuttOffset();
+    ctx.save();
+    ctx.translate(hbOff.tx, tY + hbOff.ty);
+    this._drawTorso(pFor(0), crc);
+    if (this.dents.torso > 0) this._drawArmorDents(this.dents.torso, [[0,-20],[6,-30],[-5,-15],[8,-10],[-8,-28]]);
+
+    // Sword arm  (or nothing if severed)
+    if (this.parts.swordArm) {
+      ctx.save();
+      ctx.translate(20, -28 + (breathSwordArm - breath));
+      this._drawSwordArm(pFor(20), -armSwing, swordOff.arm, swordOff.swrd, swordOff.elbow);
+      if (this.dents.swordArm > 0) this._drawArmorDents(this.dents.swordArm, [[0,6],[2,16],[-2,24],[1,32],[0,10]]);
+      ctx.restore();
+    } else {
+      // Bloody stump at sword shoulder
+      ctx.save(); ctx.translate(20, -28);
+      ctx.fillStyle='#6b0a0a'; ctx.beginPath(); ctx.ellipse(0,0,7,6,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#cc1a1a'; ctx.beginPath(); ctx.ellipse(0,1,4,4,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-3,6,2,3,0.3,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(3,7,1.5,2.5,-0.2,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.restore(); // torso
+
+    // Head
+    ctx.save();
+    ctx.translate((this._poseHeadOff ? this._poseHeadOff.x : 0) + hbOff.tx,
+                  -54 + co + breathHead + walkBob - (crc ? 30 : 40) - 8 + (this._poseHeadOff ? this._poseHeadOff.y : 0) + hbOff.ty);
+    if (this.parts.head) {
+      if (this.parts.helmet) {
+        ctx.save(); ctx.scale(0.95, 0.95); this._drawHelmet(pFor(0)); ctx.restore();
+        if ((this.dents.helmet||0) > 0) this._drawHelmetDents(this.dents.helmet);
+      } else {
+        this._drawBareHead(pFor(0), this.helmetKnockedOff);
+      }
+    } else if (this.parts.torso) {
+      // Bloody neck stump (3px lower)
+      ctx.fillStyle='#6b0a0a'; ctx.beginPath(); ctx.ellipse(0,3,9,8,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#cc1a1a'; ctx.beginPath(); ctx.ellipse(0,4,6,5,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-4,11,2.5,4,0.3,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(3,12,2,3.5,-0.2,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+
+    // Shield arm drawn after head so it renders on top of torso, sword arm, and head
+    if (this.parts.shieldArm) {
+      ctx.save();
+      ctx.translate(-19, -54 + co + breathShieldArm + walkBob - 28);
+      this._drawShieldArm(pFor(-19), stx + 19, sty + 28);
+      if (this.dents.shieldArm > 0) this._drawArmorDents(this.dents.shieldArm, [[0,6],[-2,16],[1,24],[-1,32],[0,10]]);
+      ctx.restore();
+    } else {
+      // Bloody stump at shield shoulder
+      ctx.save(); ctx.translate(-19, tY - 28);
+      ctx.fillStyle='#6b0a0a'; ctx.beginPath(); ctx.ellipse(0,0,7,6,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#cc1a1a'; ctx.beginPath(); ctx.ellipse(0,1,4,4,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-3,6,2,3,0.3,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(3,7,1.5,2.5,-0.2,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    // Bloody leg stumps at hips
+    if (!this.parts.legL) {
+      ctx.save(); ctx.translate(-8, -54+co);
+      ctx.fillStyle='#6b0a0a'; ctx.beginPath(); ctx.ellipse(0,0,7,6,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#cc1a1a'; ctx.beginPath(); ctx.ellipse(0,1,4,4,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-2,7,2,3,0.1,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+    if (!this.parts.legR) {
+      ctx.save(); ctx.translate(8, -54+co);
+      ctx.fillStyle='#6b0a0a'; ctx.beginPath(); ctx.ellipse(0,0,7,6,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#cc1a1a'; ctx.beginPath(); ctx.ellipse(0,1,4,4,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(2,7,2,3,-0.1,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    // Shield face drawn last — on top of everything including the arm
+    if (this.parts.shieldArm) {
+      ctx.save();
+      ctx.translate(stx, sty + -54 + co + breathShieldArm + walkBob);
+      this._drawShieldFace(pFor(-19));
+      ctx.restore();
+    }
+  }
+
+  // ── Leg ─────────────────────────────────────────────────────────────────────
+  _drawLeg(side, ph, walking, crouching, inAir, co, p, poseAngles) {
+    const hipX = side * 8;
+    const hipY = -54 + co;
+    let uA = 0, kA = 0;
+
+    if (poseAngles) {
+      uA = poseAngles.uA; kA = poseAngles.kA;
+    } else if (crouching) {
+      const cw = walking ? Math.sin(ph)*0.12 : 0;
+      uA = side * 0.35 + side * cw;  // thighs splay outward moderately
+      kA = -side * 0.68;             // knees bend inward symmetrically
+    } else if (walking) {
+      uA = side * Math.sin(ph) * 0.5;
+      kA = Math.max(0, -side * Math.sin(ph)) * 0.35;
+    } else if (inAir) {
+      uA = side * 0.18; kA = 0.2;
+    } else {
+      uA = side * 0.06; kA = 0.12; // slight idle bend
+    }
+
+    // One-leg hop exaggeration (skip in pose mode)
+    if (!poseAngles && (!this.parts.legL || !this.parts.legR) && this.onGround && walking) {
+      uA = Math.sin(ph*0.8)*0.6;
+      kA = Math.abs(Math.sin(ph*0.8))*0.5;
+    }
+
+    const segH = crouching ? 18 : 24;
+    ctx.save();
+    ctx.translate(hipX, hipY);
+    ctx.rotate(uA);
+    rbox(-5,0,11,segH,3,p.leg,p.outline,2);
+    ctx.translate(0,segH);
+    ctx.rotate(kA);
+    rbox(-5,0,10,segH-2,3,p.leg,p.outline,2);
+    ctx.translate(0,segH-2);
+    ctx.fillStyle=p.boot; ctx.strokeStyle=p.outline; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.roundRect(-6,-3,20,10,2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Torso ───────────────────────────────────────────────────────────────────
+  _drawTorso(p, crouching) {
+    const h = crouching ? 30 : 40;
+    ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2.5;
+    ctx.beginPath();
+    ctx.moveTo(-18,-h); ctx.lineTo(18,-h); ctx.lineTo(14,0); ctx.lineTo(-14,0);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ln(0,-h+5,0,-4,p.detail,1.5);
+    ln(-16,-h*0.55,16,-h*0.55,p.detail,1.5);
+    rbox(-14,-4,28,8,2,p.belt,p.outline,2);
+    rbox(-4,-3,8,6,1,p.beltBuckle,p.outline,1.5);
+    for (const sx of [-1,1]) {
+      ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.ellipse(sx*21,-h+2,12,8,sx*0.15,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(sx*20,-h+10,10,6,sx*0.1,0,Math.PI*2);  ctx.fill(); ctx.stroke();
+    }
+  }
+
+  // ── Helmet dispatcher ───────────────────────────────────────────────────────
+  _drawHelmet(p) {
+    if      (this.helmetStyle === 2) this._drawHelmetGreatHelm(p);
+    else if (this.helmetStyle === 3) this._drawHelmetBascinet(p);
+    else if (this.helmetStyle === 4) this._drawHelmetSallet(p);
+    else                             this._drawHelmetArmet(p);
+  }
+
+  // Style 1 — Armet (close helm, plume sweeps up and back)
+  _drawHelmetArmet(p) {
+    drawPlume(p, -27, this.plumeStyle);
+    // Helmet body
+    ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.arc(0,-12,17,Math.PI,0); ctx.lineTo(14,6); ctx.lineTo(-14,6); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ln(-14,-3,14,-3,p.detail,2);
+    for (const sx of [-1,1]) {
+      ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(sx*4,-3); ctx.lineTo(sx*15,-1); ctx.lineTo(sx*15,9); ctx.lineTo(sx*5,9); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    ctx.fillStyle=p.visor; ctx.strokeStyle=p.outline; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(-12,-11,7,3,1); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(5,-11,7,3,1);   ctx.fill(); ctx.stroke();
+    ln(0,-14,0,6,p.detail,2);
+    rbox(-10,6,20,7,2,p.armor,p.outline,2);
+  }
+
+  // Style 2 — Great Helm (flat-top, scaled to match armet, plume on top)
+  _drawHelmetGreatHelm(p) {
+    drawPlume(p, -30, this.plumeStyle);
+    ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2.5;
+    ctx.beginPath();
+    ctx.moveTo(-16,7); ctx.lineTo(-17,-16); ctx.lineTo(-14,-27); ctx.lineTo(14,-27); ctx.lineTo(17,-16); ctx.lineTo(16,7);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Flat top plate
+    ctx.beginPath(); ctx.roundRect(-16,-32,32,7,2); ctx.fill(); ctx.stroke();
+    // T-slit
+    ctx.fillStyle=p.visor;
+    ctx.fillRect(-15,-10,30,4);
+    ctx.fillRect(-2,-28,4,17);
+    // Chin divider line
+    ctx.strokeStyle=p.outline; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(-16,-4); ctx.lineTo(16,-4); ctx.stroke();
+    // Breathing holes
+    ctx.fillStyle=p.visor;
+    for(const hx of [-8,-3,2,7]) { ctx.beginPath(); ctx.arc(hx,0,1.5,0,Math.PI*2); ctx.fill(); }
+    // Ridge + rivets
+    ln(0,7,0,-32,p.detail,1.5);
+    ctx.fillStyle=p.rivet;
+    for(const rx of [-10,-5,0,5,10]) { ctx.beginPath(); ctx.arc(rx,-29,1.5,0,Math.PI*2); ctx.fill(); }
+  }
+
+  // Style 3 — Bascinet (rounded dome, pointed crown, klappvisor, plume sweeps up)
+  _drawHelmetBascinet(p) {
+    drawPlume(p, -38, this.plumeStyle);
+    // Skull cap — slightly smaller than before
+    ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2.5;
+    ctx.beginPath();
+    ctx.moveTo(-17,6); ctx.lineTo(-18,-16);
+    ctx.quadraticCurveTo(-15,-38,0,-40);
+    ctx.quadraticCurveTo(15,-38,18,-16);
+    ctx.lineTo(17,6); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Klappvisor beak
+    ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(-15,-8); ctx.lineTo(-15,2); ctx.lineTo(15,2); ctx.lineTo(15,-8);
+    ctx.quadraticCurveTo(7,-24,3,-30); ctx.lineTo(-3,-30); ctx.quadraticCurveTo(-7,-24,-15,-8);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Vision slit
+    ctx.fillStyle=p.visor; ctx.beginPath(); ctx.roundRect(-12,-10,24,3,1); ctx.fill();
+    // Snout holes
+    for(const [hx,hy] of [[-3,-18],[2,-18],[-3,-23],[2,-23]]) {
+      ctx.fillStyle=p.visor; ctx.beginPath(); ctx.arc(hx,hy,1.5,0,Math.PI*2); ctx.fill();
+    }
+    // Hinge pins + skull ridge
+    ctx.fillStyle=p.rivet;
+    ctx.beginPath(); ctx.arc(-15,-8,2,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(15,-8,2,0,Math.PI*2); ctx.fill();
+    ln(0,6,0,-40,p.detail,1.5);
+  }
+
+  // Style 4 — Sallet (front view: round dome, overhanging brow peak, open face, neck brim)
+  _drawHelmetSallet(p) {
+    drawPlume(p, -31, this.plumeStyle);
+    ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=2.5;
+    // Dome body — same arc scale as armet
+    ctx.beginPath();
+    ctx.arc(0,-14,17,Math.PI,0);
+    ctx.lineTo(16,6); ctx.lineTo(-16,6);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Brow peak — the sallet's signature overhanging ledge
+    ctx.beginPath();
+    ctx.moveTo(-17,-14); ctx.lineTo(-20,-9); ctx.lineTo(20,-9); ctx.lineTo(17,-14);
+    ctx.lineTo(15,-4);   ctx.lineTo(-15,-4);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Neck brim — wider flare at base
+    ctx.beginPath();
+    ctx.moveTo(-16,5); ctx.lineTo(-21,9); ctx.lineTo(21,9); ctx.lineTo(16,5);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Open face shadow below brow
+    ctx.fillStyle=p.visor;
+    ctx.beginPath(); ctx.roundRect(-12,-4,24,9,2); ctx.fill();
+    // Crown ridge
+    ln(0,-31,0,9,p.detail,1.5);
+    // Brim and brow rivets
+    ctx.fillStyle=p.rivet;
+    for(const [rx,ry] of [[-15,7],[-5,7],[5,7],[15,7],[-17,-11],[17,-11]]) {
+      ctx.beginPath(); ctx.arc(rx,ry,1.5,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  _drawBareHead(p, bloody) {
+    // Slightly oval head (wider than tall at jaw)
+    ctx.fillStyle=p.skin; ctx.strokeStyle=p.outline; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.ellipse(0,-8,12,14,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    // Hair cap — dark, swept back
+    ctx.fillStyle='#3a2808';
+    ctx.beginPath(); ctx.ellipse(0,-17,11,7,0,Math.PI,Math.PI*2); ctx.fill();
+    // Eyes — narrow, fierce
+    ctx.fillStyle='#2a1800';
+    ctx.beginPath(); ctx.ellipse(-4,-9,2.5,1.8,0,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(4,-9,2.5,1.8,0,0,Math.PI*2); ctx.fill();
+    // Scowl brows — angled inward
+    ctx.strokeStyle='#2a1800'; ctx.lineWidth=2; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(-6,-13); ctx.lineTo(0,-11); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(6,-13); ctx.lineTo(0,-11); ctx.stroke();
+    // Nose — small bump between eyes and mouth
+    ctx.strokeStyle='#2a1800'; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(-2,-5); ctx.lineTo(0,-3); ctx.lineTo(2,-5); ctx.stroke();
+    // Grimace mouth
+    ctx.lineWidth=1.5; ctx.strokeStyle=p.outline;
+    ctx.beginPath(); ctx.moveTo(-5,-1); ctx.quadraticCurveTo(0,2,5,-1); ctx.stroke();
+    ctx.lineCap='butt';
+    // Blood from helmet impact
+    if (bloody) {
+      ctx.fillStyle='#8a0a0a'; ctx.globalAlpha=0.82;
+      // Gash across forehead
+      ctx.beginPath(); ctx.ellipse(-2,-14,4,2,0.4,0,Math.PI*2); ctx.fill();
+      // Trickle down left side
+      ctx.fillStyle='#aa1010'; ctx.globalAlpha=0.75;
+      ctx.beginPath(); ctx.moveTo(-3,-14); ctx.bezierCurveTo(-5,-8,-4,-2,-5,4); ctx.lineWidth=2; ctx.lineCap='round'; ctx.strokeStyle='#8a0a0a'; ctx.stroke();
+      // Smaller drip on right
+      ctx.beginPath(); ctx.moveTo(2,-13); ctx.bezierCurveTo(3,-7,2,-3,3,1); ctx.lineWidth=1.5; ctx.stroke();
+      ctx.globalAlpha=1; ctx.lineCap='butt';
+    }
+  }
+
+  // Dent scratch marks on helmet
+  _drawHelmetDents(count) {
+    ctx.save(); ctx.scale(0.95, 0.95);
+    ctx.strokeStyle='rgba(0,0,0,0.45)'; ctx.lineCap='round';
+    // Fixed scratch positions so they don't jitter each frame
+    const scratches = [
+      { x1:-8, y1:-18, x2:-3, y2:-12, w:1.8 },
+      { x1: 5, y1:-20, x2: 9, y2:-14, w:1.4 },
+      { x1:-4, y1: -6, x2: 2, y2: -2, w:1.2 },
+      { x1: 8, y1: -8, x2:12, y2: -4, w:1.0 },
+      { x1:-11, y1:-10, x2:-7, y2: -5, w:1.5 },
+    ];
+    for (let i = 0; i < Math.min(count, scratches.length); i++) {
+      const s = scratches[i];
+      ctx.lineWidth = s.w;
+      ctx.beginPath(); ctx.moveTo(s.x1,s.y1); ctx.lineTo(s.x2,s.y2); ctx.stroke();
+    }
+    ctx.lineCap='butt'; ctx.restore();
+  }
+
+  // Shared armor dent scratches — pts is array of [x,y] anchor positions
+  _drawArmorDents(count, pts) {
+    ctx.save();
+    ctx.strokeStyle='rgba(0,0,0,0.38)'; ctx.lineCap='round';
+    for (let i = 0; i < Math.min(count, pts.length); i++) {
+      const [cx,cy] = pts[i];
+      ctx.lineWidth = 1.2 + (i%2)*0.5;
+      ctx.beginPath(); ctx.moveTo(cx-3,cy-2); ctx.lineTo(cx+3,cy+3); ctx.stroke();
+      ctx.lineWidth = 0.9;
+      ctx.beginPath(); ctx.moveTo(cx+1,cy-3); ctx.lineTo(cx-2,cy+2); ctx.stroke();
+    }
+    ctx.lineCap='butt'; ctx.restore();
+  }
+
+  // ── Shield arm ──────────────────────────────────────────────────────────────
+  // IK two-segment arm pointing toward (lx,ly) in local space; shield drawn separately via _drawShieldFace
+  _drawShieldArm(p, lx, ly) {
+    const ua = 20, fa = 16;
+    const d  = Math.sqrt(lx*lx + ly*ly);
+    const baseAng = Math.atan2(-lx, ly);
+    let sAng, eAng;
+    if (d >= ua + fa) {
+      // Arm fully extended straight toward target
+      sAng = baseAng; eAng = 0;
+    } else {
+      const clamp = v => Math.max(-1, Math.min(1, v));
+      const cosAlpha = clamp((d*d + ua*ua - fa*fa) / (2*d*ua));
+      const cosTheta = clamp((ua*ua + fa*fa - d*d) / (2*ua*fa));
+      sAng = baseAng + Math.acos(cosAlpha); // elbow bends inward
+      eAng = -(Math.PI - Math.acos(cosTheta));
+    }
+    ctx.save();
+    ctx.rotate(sAng);
+    rbox(-5,0,11,ua,3,p.armor,p.outline,2);
+    ctx.translate(0,ua);
+    circ(0,0,4,p.armor,p.outline,1.5);
+    ctx.rotate(eAng);
+    rbox(-5,0,10,fa,3,p.armor,p.outline,2);
+    ctx.translate(0,fa);
+    // Fist
+    ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(-6,0,12,9,3); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=0.8;
+    ctx.beginPath(); ctx.moveTo(-3,4); ctx.lineTo(4,4); ctx.stroke();
+    ctx.restore();
+  }
+
+  _drawShieldFace(p) {
+    ctx.fillStyle=p.shield; ctx.strokeStyle=p.outline; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(0,-15); ctx.lineTo(14,-7); ctx.lineTo(14,11);
+    ctx.quadraticCurveTo(7,25,0,28); ctx.quadraticCurveTo(-7,25,-14,11); ctx.lineTo(-14,-7); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    circ(0,6,5.5,p.shieldBoss,p.outline,2); circ(0,6,2,p.beltBuckle,null);
+    ln(0,-11,0,22,p.shieldDetail,1.5); ln(-11,6,11,6,p.shieldDetail,1.5);
+  }
+
+  // ── Sword arm ────────────────────────────────────────────────────────────────
+  // armAngle:  whole-arm rotation from shoulder (animated by attack + walking swing)
+  // swordAngle: sword rotation at hilt relative to forearm
+  _drawSwordArm(p, swing, armAngle, swordAngle, elbowAngle) {
+    ctx.save();
+    ctx.rotate(armAngle + swing);
+    rbox(-5,0,11,20,3,p.armor,p.outline,2);
+    ctx.translate(0,20);
+    circ(0,0,4,p.armor,p.outline,1.5);
+    ctx.rotate(elbowAngle); // driven by pose IK or default
+    rbox(-5,0,10,16,3,p.armor,p.outline,2);
+    ctx.translate(0,14); // fist aligned with forearm, pulled up 2px to close wrist gap
+    // Sword drawn first so fist renders on top of hilt
+    if (this.hasSword) {
+      ctx.save();
+      ctx.rotate(swordAngle);
+      rbox(-3,-3,8,12,2,p.swordGrip,p.outline,2);  // #1 use palette grip color
+      circ(1,10,5,p.swordGrip,p.outline,2);         // pommel
+      rbox(-12,-4,26,5,2,p.swordMetal,p.outline,2); // crossguard follows
+      ctx.fillStyle=p.blade; ctx.strokeStyle=p.outline; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(-3.5,-4); ctx.lineTo(3.5,-4); ctx.lineTo(1.2,-61); ctx.lineTo(-1.2,-61); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ln(0,-6,0,-58,'#ffffff55',1);
+      ctx.restore();
+    }
+    // Fist drawn after sword; when no sword align with forearm (no rotation)
+    ctx.save();
+    ctx.rotate(this.hasSword ? swordAngle : 0);
+    ctx.fillStyle=p.armor; ctx.strokeStyle=p.outline; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(-6,0,12,9,3); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle='rgba(0,0,0,0.2)'; ctx.lineWidth=0.8;
+    ctx.beginPath(); ctx.moveTo(-3,4); ctx.lineTo(4,4); ctx.stroke();
+    ctx.restore();
+    ctx.restore();
+  }
+}
+
+// ─── PALETTES (generated at runtime via makeKnightPalette) ───────────────────
+
+// ─── CONTROLS ────────────────────────────────────────────────────────────────
+const CTRL1 = {
+  left:'KeyA', right:'KeyD', up:'KeyW', down:'KeyS',
+  atkH:'KeyR', atkM:'KeyF', atkL:'KeyC',
+  blkH:'KeyT', blkM:'KeyG', blkL:'KeyV',
+  throw:'KeyE',
+  h1:'Digit1', h2:'Digit2', h3:'Digit3', h4:'Digit4', h5:'Digit5',
+};
+const CTRL2 = {
+  left:'ArrowLeft', right:'ArrowRight', up:'ArrowUp', down:'ArrowDown',
+  atkH:'KeyP', atkM:'KeyL', atkL:'Period',
+  blkH:'BracketLeft', blkM:'Semicolon', blkL:'Slash',
+  throw:'KeyO',
+  h1:'Digit6', h2:'Digit7', h3:'Digit8', h4:'Digit9', h5:'Digit0',
+};
+
+// ─── GAME STATE ──────────────────────────────────────────────────────────────
+const k1 = new Knight(270,  1, CTRL1, 'blue', 'Player 1');
+const k2 = new Knight(730, -1, CTRL2, 'red',  'Player 2');
+
+let p1Wins = 0, p2Wins = 0;
+let phase  = 'title'; // 'title' | 'countdown' | 'fight' | 'round_over' | 'game_over'
+let phaseT = 0;
+let countdown = 3;
+const flyingSwords = [];
+let prevKeys = {};
+
+// #13 Screen shake
+let screenShake = { x:0, y:0, timer:0, mag:0 };
+function triggerShake(mag, dur) { screenShake.mag = mag; screenShake.timer = dur; }
+
+// #19 Torch flicker on combat impacts
+let torchFlicker = { timer:0, intensity:0 };
+function triggerFlicker(intensity) { torchFlicker.timer = 0.3; torchFlicker.intensity = intensity; }
+
+function startRound() {
+  k1.reset(); k2.reset();
+  particles.length = 0;
+  flyingSwords.length = 0;
+  phase = 'countdown';
+  phaseT = 0;
+  countdown = 3;
+  lastCountdownN = -1;
+}
+
+// ─── HIT DETECTION ───────────────────────────────────────────────────────────
+function rectsOverlap(a,b) {
+  return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+}
+
+function processSwordThrows(defender) {
+  if (defender.dead) return;
+  for (const sw of flyingSwords) {
+    if (sw.hit || sw.landed || sw.owner === defender) continue;
+    const dist = Math.abs(sw.x - defender.x);
+    if (dist < 55 && sw.y >= defender.y - 160 && sw.y <= defender.y + 10) {
+      sw.hit = true;
+      sw.landed = false;
+      // Blade direction in world space is (sin(angle), -cos(angle)).
+      // Positive dot product means blade is pointing toward defender → blade hit.
+      const dx = defender.x - sw.x;
+      const dy = defender.y - sw.y;
+      const bladeToward = dx * Math.sin(sw.angle) + dy * (-Math.cos(sw.angle));
+      if (bladeToward > 0) {
+        // #2 check if defender is blocking mid with shield
+        if (defender.blk && defender.blk.zone === 'mid' && defender.parts.shieldArm) {
+          defender.stamina  = Math.max(0, defender.stamina - 12);
+          defender.hitFlash = 0.06;
+          defender.counterWindow = 0.15;
+          sw.vx *= -0.5; sw.vy = -100;
+          emitSparks((sw.x + defender.x) / 2, defender.y - 80);
+          sfxClang();
+        } else {
+          sw.vx *= -0.4; sw.vy = -120;
+          defender.receiveHit('mid');
+        }
+      } else {
+        // Handle hit — bounce off harmlessly
+        sw.vx *= -0.5; sw.vy = -80;
+        defender.hitFlash = 0.06;
+        sfxClang();
+      }
+    }
+  }
+}
+
+function processHits(atk, def) {
+  if (atk.dead || def.dead) return;
+  if (!atk.atk || atk.atk.phase !== 'active' || atk.atk.hit) return;
+
+  let zone    = atk.atk.type;
+  const reach = (atk.parts.swordArm && atk.hasSword) ? SWORD_REACH : PUNCH_REACH;  // #4
+  const dist  = Math.abs(atk.x - def.x);
+  if (dist > reach) return;
+  // Must face the defender
+  if ((def.x - atk.x) * atk.facing < 0) return;
+
+  // Track whether this is a punch or bash before normalizing zone
+  const isBash  = zone === 'bash';
+  const isPunch = zone === 'punchH' || zone === 'punchM' || zone === 'punchL' || zone === 'kick' || zone === 'headbutt';
+
+  // Normalize punch/kick/headbutt types to their hit zone
+  if (zone === 'punchH') zone = 'high';
+  else if (zone === 'punchM') zone = 'mid';
+  else if (zone === 'punchL') zone = 'low';
+  else if (zone === 'kick') zone = 'mid';
+  else if (zone === 'headbutt') zone = 'high';
+
+  // High attacks whiff over crouching defenders
+  if (zone === 'high' && def.crouching) return;
+
+  // Normalize h1-h5 high swing variants to 'high' zone
+  if (zone==='h1'||zone==='h2'||zone==='h3'||zone==='h4'||zone==='h5') zone = 'high';
+  // Legless defenders sit on the ground — low attacks hit their torso instead
+  if (zone === 'low' && !def.parts.legL && !def.parts.legR) zone = 'mid';
+
+  // bash blocks as mid; punches block at their own zone
+  const blockZone = isBash ? 'mid' : zone;
+
+  // Extended blade parry — absorbs any hit, costs heavy stamina
+  if (def.atk?.phase === 'extended' && def.parts.swordArm && def.hasSword) {
+    def.stamina  = Math.max(0, def.stamina - 35);
+    atk.stagger  = 0.15;
+    atk.atk.hit  = true;
+    def.hitFlash = 0.06;
+    const sX = (atk.x + def.x) / 2;
+    const sY = def.y - 90;
+    emitSparks(sX, sY);
+    sfxClang();
+    return;
+  }
+
+  // Zone-based block check
+  if (def.blk && def.blk.zone === blockZone) {
+    def.stamina  = Math.max(0, def.stamina - 12);
+    atk.stagger  = 0.12;
+    atk.atk.hit  = true;
+    def.hitFlash = 0.06;
+    def.counterWindow = 0.15;  // #15 brief fast-riposte window after successful block
+    const sX = (atk.x + def.x) / 2;
+    const sY = def.y - (blockZone==='high' ? 115 : blockZone==='low' ? 40 : 80);
+    emitSparks(sX, sY);
+    sfxClang();
+    return;
+  }
+
+  // Hit!
+  atk.atk.hit = true;
+  if (isBash || isPunch) {
+    def.bashHits++;
+    if (def.bashHits < 2) {
+      // First hit: stagger only, no limb damage  #8
+      def.stagger   = 0.25;  // #14
+      def.hitFlash  = 0.22;
+      emitBlood(def.x, def.y - 80, 5);
+      sfxHit(true);
+      triggerShake(1.5, 0.08); triggerFlicker(0.5);
+      // Dent the armor on the targeted zone
+      if      (zone === 'high') { if (def.parts.helmet) def.dents.helmet = (def.dents.helmet||0)+1; }
+      else if (zone === 'mid' || zone === 'bash') { if (def.parts.swordArm) def.dents.swordArm++; else if (def.parts.shieldArm) def.dents.shieldArm++; else def.dents.torso++; }
+      else if (zone === 'low')  { if (def.parts.legL && def.parts.legR) { if (Math.random()<0.5) def.dents.legL++; else def.dents.legR++; } else if (def.parts.legL) def.dents.legL++; else if (def.parts.legR) def.dents.legR++; }
+      return;
+    }
+    def.bashHits = 0; // third hit lands — deal real damage then fall through
+    // zone is already normalized (punch → high/mid/low, bash stays 'bash')
+  }
+  def.receiveHit(zone);
+}
+
+// ─── BACKGROUND ──────────────────────────────────────────────────────────────
+const bgCache = (function(){
+  const bc = document.createElement('canvas');
+  bc.width=W; bc.height=H;
+  const bx = bc.getContext('2d');
+
+  // ── Stone wall base ──────────────────────────────────────────────────────────
+  bx.fillStyle='#22212e'; bx.fillRect(0,0,W,GROUND);
+
+  // Stone block grid — ashlar masonry, alternating row offset
+  const BW=86, BH=42;
+  for (let row=0; row*BH<GROUND+BH; row++) {
+    const ox = (row%2)*43;
+    for (let col=-1; col*BW<W+BW; col++) {
+      const sx=col*BW+ox, sy=row*BH;
+      const v=(row*5+col*11)%4;
+      bx.fillStyle=['#252433','#272636','#242332','#262535'][v];
+      bx.fillRect(sx+2,sy+2,BW-4,BH-4);
+    }
+  }
+  // Mortar joints
+  bx.strokeStyle='#171621'; bx.lineWidth=2.5;
+  for (let row=0; row*BH<=GROUND+BH; row++) {
+    bx.beginPath(); bx.moveTo(0,row*BH); bx.lineTo(W,row*BH); bx.stroke();
+  }
+  for (let row=0; row*BH<GROUND; row++) {
+    const ox=(row%2)*43;
+    for (let col=-1; col*BW<W+BW; col++) {
+      const sx=col*BW+ox;
+      bx.beginPath(); bx.moveTo(sx,row*BH); bx.lineTo(sx,(row+1)*BH); bx.stroke();
+    }
+  }
+
+  // ── Battlements (crenellations) at top ──────────────────────────────────────
+  const MW=52, CW=34, MH=46;
+  // Fill crenels with dark sky
+  bx.fillStyle='#0c0b14';
+  for (let x=MW; x<W; x+=MW+CW) bx.fillRect(x,0,CW,MH);
+  // Top edge shadow on merlons
+  const mTop=bx.createLinearGradient(0,0,0,MH+10);
+  mTop.addColorStop(0,'rgba(0,0,0,0.6)'); mTop.addColorStop(1,'rgba(0,0,0,0)');
+  bx.fillStyle=mTop; bx.fillRect(0,0,W,MH+10);
+
+  // ── Coat of Arms (top center) ────────────────────────────────────────────────
+  (function(){
+    const cx=W/2, sw=40;
+    const st=62, mid=108, sbot=152; // shield top y, cross-bar y, bottom point y
+    // Stone backing plaque
+    bx.fillStyle='#1c1b2a';
+    bx.beginPath(); bx.roundRect(cx-66,50,132,152,7); bx.fill();
+    bx.strokeStyle='#3a3858'; bx.lineWidth=2;
+    bx.beginPath(); bx.roundRect(cx-66,50,132,152,7); bx.stroke();
+    bx.strokeStyle='#282640'; bx.lineWidth=1;
+    bx.beginPath(); bx.roundRect(cx-60,56,120,140,5); bx.stroke();
+    // Shield path helper
+    function sp(){
+      bx.beginPath();
+      bx.moveTo(cx-sw,st); bx.lineTo(cx+sw,st);
+      bx.lineTo(cx+sw,mid+10);
+      bx.quadraticCurveTo(cx+sw,sbot,cx,sbot+8);
+      bx.quadraticCurveTo(cx-sw,sbot,cx-sw,mid+10);
+      bx.closePath();
+    }
+    // Black shadow border
+    sp(); bx.fillStyle='#080810'; bx.fill();
+    // Clip and paint quarterly field
+    bx.save(); sp(); bx.clip();
+    const hm = st+(sbot-st)/2+2; // horizontal divider y
+    bx.fillStyle='#7a1818'; bx.fillRect(cx-sw,st,sw,hm-st);   // TL red
+    bx.fillStyle='#1a2e80'; bx.fillRect(cx,st,sw,hm-st);       // TR blue
+    bx.fillStyle='#1a2e80'; bx.fillRect(cx-sw,hm,sw,sbot-hm+12); // BL blue
+    bx.fillStyle='#7a1818'; bx.fillRect(cx,hm,sw,sbot-hm+12);    // BR red
+    // Gold cross
+    bx.fillStyle='#c8a020';
+    bx.fillRect(cx-3,st,6,sbot-st+10);    // vertical bar
+    bx.fillRect(cx-sw,hm-3,sw*2,6);       // horizontal bar
+    // Charges: 4-pointed star in each quarter
+    bx.fillStyle='#f0d050';
+    for(const [qx,qy] of [[cx-sw*0.55,st+(hm-st)*0.5],[cx+sw*0.55,st+(hm-st)*0.5],
+                            [cx-sw*0.55,hm+(sbot-hm)*0.45],[cx+sw*0.55,hm+(sbot-hm)*0.45]]){
+      bx.save(); bx.translate(qx,qy); bx.beginPath();
+      for(let i=0;i<8;i++){const a=i*Math.PI/4,r=i%2===0?6.5:2.8; i===0?bx.moveTo(Math.cos(a)*r,Math.sin(a)*r):bx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}
+      bx.closePath(); bx.fill(); bx.restore();
+    }
+    bx.restore(); // end clip
+    // Shield gold border
+    sp(); bx.strokeStyle='#d4a820'; bx.lineWidth=2.5; bx.stroke();
+    // Crown above shield
+    bx.save(); bx.translate(cx,st-2);
+    bx.fillStyle='#d4a820'; bx.strokeStyle='#8a6008'; bx.lineWidth=1.5;
+    bx.beginPath(); bx.roundRect(-18,0,36,10,2); bx.fill(); bx.stroke();
+    for(const [px,gc] of [[-10,'#cc2020'],[0,'#2255dd'],[10,'#cc2020']]){
+      bx.fillStyle='#d4a820';
+      bx.beginPath(); bx.moveTo(px-5,0); bx.lineTo(px,-13); bx.lineTo(px+5,0); bx.closePath(); bx.fill(); bx.stroke();
+      bx.fillStyle=gc; bx.beginPath(); bx.arc(px,-9,2.5,0,Math.PI*2); bx.fill();
+    }
+    bx.restore();
+    // Motto scroll below shield
+    bx.save(); bx.translate(cx,sbot+18);
+    bx.fillStyle='#b89018'; bx.strokeStyle='#7a6010'; bx.lineWidth=1.5;
+    bx.beginPath(); bx.moveTo(-50,-8); bx.lineTo(50,-8); bx.lineTo(46,8); bx.lineTo(-46,8); bx.closePath();
+    bx.fill(); bx.stroke();
+    bx.fillStyle='#b89018'; bx.beginPath(); bx.ellipse(-50,0,5,8,0,0,Math.PI*2); bx.fill(); bx.stroke();
+    bx.fillStyle='#b89018'; bx.beginPath(); bx.ellipse(50,0,5,8,0,0,Math.PI*2); bx.fill(); bx.stroke();
+    bx.fillStyle='#1a1208'; bx.font='700 9px serif'; bx.textAlign='center';
+    bx.fillText('KNIGHT  DUEL',0,4);
+    bx.restore();
+  })();
+
+  // ── Central arched doorway ───────────────────────────────────────────────────
+  const aX=W/2, aW=118, aH=190, aBase=GROUND+2;
+  bx.fillStyle='#0c0b14';
+  bx.beginPath();
+  bx.moveTo(aX-aW/2, aBase);
+  bx.lineTo(aX-aW/2, aBase-aH+aW/2);
+  bx.arc(aX, aBase-aH+aW/2, aW/2, Math.PI, 0, false);
+  bx.lineTo(aX+aW/2, aBase);
+  bx.closePath(); bx.fill();
+  // Arch stone surround
+  bx.strokeStyle='#171621'; bx.lineWidth=5;
+  bx.beginPath();
+  bx.moveTo(aX-aW/2-4, aBase);
+  bx.lineTo(aX-aW/2-4, aBase-aH+aW/2);
+  bx.arc(aX, aBase-aH+aW/2, aW/2+4, Math.PI, 0, false);
+  bx.lineTo(aX+aW/2+4, aBase);
+  bx.stroke();
+
+  // ── Torches — hardware only (flames drawn live each frame) ───────────────────
+  for (const [tx,ty] of [[170,245],[830,245]]) {
+    // Static dim base glow (animated glow drawn on top each frame)
+    const g=bx.createRadialGradient(tx,ty-15,5,tx,ty-15,100);
+    g.addColorStop(0,'rgba(255,120,10,0.18)');
+    g.addColorStop(0.5,'rgba(200,60,0,0.07)');
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    bx.fillStyle=g; bx.beginPath(); bx.arc(tx,ty-15,100,0,Math.PI*2); bx.fill();
+    // Wall bracket
+    bx.fillStyle='#4a3010';
+    bx.fillRect(tx-4,ty+2,8,22);
+    bx.fillRect(tx-13,ty+5,26,8);
+    bx.strokeStyle='#2a1a08'; bx.lineWidth=1.5;
+    bx.strokeRect(tx-13,ty+5,26,8);
+    // Torch cup
+    bx.fillStyle='#5a3818'; bx.strokeStyle='#2a1a08'; bx.lineWidth=1;
+    bx.beginPath(); bx.roundRect(tx-5,ty-6,10,10,1); bx.fill(); bx.stroke();
+  }
+
+  // ── Depth shadow at base of wall ─────────────────────────────────────────────
+  const wallBase=bx.createLinearGradient(0,GROUND-30,0,GROUND);
+  wallBase.addColorStop(0,'rgba(0,0,0,0)'); wallBase.addColorStop(1,'rgba(0,0,0,0.5)');
+  bx.fillStyle=wallBase; bx.fillRect(0,GROUND-30,W,30);
+
+  // ── Stone floor ──────────────────────────────────────────────────────────────
+  const fg=bx.createLinearGradient(0,GROUND,0,H);
+  fg.addColorStop(0,'#343244'); fg.addColorStop(1,'#201f2c');
+  bx.fillStyle=fg; bx.fillRect(0,GROUND,W,H-GROUND);
+
+  // Flagstones — two staggered rows
+  const rows=[
+    { y:GROUND+3,  h:34, starts:[0,112,224,336,455,572,690,808,925] },
+    { y:GROUND+40, h:34, starts:[0, 95,214,332,448,565,684,800,918] },
+  ];
+  for (const {y,h,starts} of rows) {
+    for (let i=0;i<starts.length;i++) {
+      const fx=starts[i], fw=(starts[i+1]||W+20)-fx-3;
+      bx.fillStyle=(i%2===0)?'#302f3e':'#2e2d3c';
+      bx.fillRect(fx+2,y,fw,h);
+    }
+  }
+  // Grout lines
+  bx.strokeStyle='#18172292'; bx.lineWidth=2;
+  bx.beginPath(); bx.moveTo(0,GROUND+37); bx.lineTo(W,GROUND+37); bx.stroke();
+  bx.beginPath(); bx.moveTo(0,GROUND+74); bx.lineTo(W,GROUND+74); bx.stroke();
+
+  // ── Decorative Pedestals (tall columns, no helmets) ──────────────────────────
+  for(const [px] of [[68],[932]]){
+    const pw=74, ph=390, pt=GROUND-ph;
+    // Pedestal gradient body
+    const pg=bx.createLinearGradient(px-pw/2,0,px+pw/2,0);
+    pg.addColorStop(0,'#26253a'); pg.addColorStop(0.45,'#33314c'); pg.addColorStop(1,'#26253a');
+    bx.fillStyle=pg;
+    bx.beginPath(); bx.roundRect(px-pw/2,pt,pw,ph,3); bx.fill();
+    bx.strokeStyle='#181728'; bx.lineWidth=2;
+    bx.beginPath(); bx.roundRect(px-pw/2,pt,pw,ph,3); bx.stroke();
+    // Horizontal course lines every 40px
+    bx.strokeStyle='#1c1b2c'; bx.lineWidth=1.5;
+    for(let gy=pt+40;gy<GROUND;gy+=40){bx.beginPath();bx.moveTo(px-pw/2,gy);bx.lineTo(px+pw/2,gy);bx.stroke();}
+    // Capital (top cap)
+    bx.fillStyle='#2c2b42'; bx.strokeStyle='#181728'; bx.lineWidth=2;
+    bx.beginPath(); bx.roundRect(px-pw/2-10,pt,pw+20,20,3); bx.fill(); bx.stroke();
+    // Mid decorative band
+    bx.beginPath(); bx.roundRect(px-pw/2-6,pt+ph/2-8,pw+12,16,2); bx.fill(); bx.stroke();
+    // Base (bottom cap)
+    bx.beginPath(); bx.roundRect(px-pw/2-10,GROUND-20,pw+20,20,3); bx.fill(); bx.stroke();
+  }
+
+  return bc;
+})();
+
+// ─── UI ──────────────────────────────────────────────────────────────────────
+function drawUI() {
+  // Win pip icons
+  ctx.font = "700 20px 'Cinzel', serif";
+  ctx.textAlign = 'center';
+  ctx.fillStyle = k1.pal.label;
+  ctx.fillText('♦'.repeat(p1Wins) + '◇'.repeat(2-p1Wins), 180, 32);
+  ctx.fillStyle = k2.pal.label;
+  ctx.fillText('♦'.repeat(p2Wins) + '◇'.repeat(2-p2Wins), 820, 32);
+
+  // Knight colour labels near pips
+  ctx.font = "700 11px 'Cinzel', serif";
+  ctx.fillStyle = k1.pal.label;
+  ctx.fillText('The ' + k1.colorName + ' Knight', 180, 50);
+  ctx.fillStyle = k2.pal.label;
+  ctx.fillText('The ' + k2.colorName + ' Knight', 820, 50);
+
+  if (phase === 'countdown') {
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(0,0,W,H);
+    ctx.font = "700 24px 'Cinzel', serif";
+    ctx.fillStyle = '#b0a070';
+    ctx.fillText('Round  ' + toRoman(p1Wins + p2Wins + 1), W/2, H/2 - 68);
+    const n = Math.ceil(countdown - phaseT);
+    ctx.font = "900 88px 'Cinzel Decorative', serif";
+    ctx.fillStyle = n <= 1 ? '#ffe040' : '#ffffff';
+    ctx.fillText(n > 0 ? n : 'Fight!', W/2, H/2 + 28);
+  }
+
+  if (phase === 'round_over' || phase === 'game_over') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0,0,W,H);
+    const winner = k1.dead ? k2 : k1;
+    // Gold decorative line above
+    ctx.strokeStyle = '#c8a020'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(W/2-200, H/2-55); ctx.lineTo(W/2+200, H/2-55); ctx.stroke();
+    ctx.fillStyle = winner.pal.label;
+    ctx.font = "900 42px 'Cinzel Decorative', serif";
+    ctx.fillText('The ' + winner.colorName + ' Knight', W/2, H/2 - 10);
+    ctx.font = "700 26px 'Cinzel', serif";
+    ctx.fillStyle = '#d4c080';
+    if (phase === 'game_over') {
+      ctx.fillText('hath won the day!', W/2, H/2 + 32);
+      ctx.font = "700 18px 'Cinzel', serif";
+      ctx.fillStyle = '#f0d060';
+      ctx.fillText('✦  Reigneth Supreme O\'er All  ✦', W/2, H/2 + 64);
+    } else {
+      ctx.fillText('hath won the bout!', W/2, H/2 + 32);
+    }
+    // Gold decorative line below
+    ctx.strokeStyle = '#c8a020'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(W/2-200, H/2+78); ctx.lineTo(W/2+200, H/2+78); ctx.stroke();
+    ctx.fillStyle = '#666';
+    ctx.font = "400 14px 'Cinzel', serif";
+    ctx.fillText(phaseT > 0.5 ? '— Press Space to Continue —' : '', W/2, H/2 + 100);  // #21
+  }
+}
+
+// ─── TORCH ANIMATION ──────────────────────────────────────────────────────────
+const TORCH_POSITIONS = [[170,245],[830,245]];
+
+function drawTorches(ts) {
+  const t = ts * 0.001; // seconds
+  const fb = torchFlicker.timer > 0 ? torchFlicker.intensity * (torchFlicker.timer / 0.3) : 0; // #19 flicker boost
+  for (const [tx, ty] of TORCH_POSITIONS) {
+    // Each torch gets its own phase offset so they don't look identical
+    const ph = tx * 0.017;
+
+    // ── Animated radial glow ─────────────────────────────────────────────────
+    const gPulse = 0.72 + 0.28 * (0.6*Math.sin(t*3.1+ph) + 0.4*Math.sin(t*7.3+ph*2));
+    const gSize  = 95 + 18 * Math.sin(t*2.8+ph) + fb * 30;  // #19 flicker expands glow
+    const gx = ctx.createRadialGradient(tx, ty-20, 4, tx, ty-20, gSize);
+    gx.addColorStop(0,   `rgba(255,160,20,${0.45*gPulse})`);
+    gx.addColorStop(0.3, `rgba(255,80,0,${0.20*gPulse})`);
+    gx.addColorStop(0.7, `rgba(200,40,0,${0.07*gPulse})`);
+    gx.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = gx;
+    ctx.beginPath(); ctx.arc(tx, ty-20, gSize, 0, Math.PI*2); ctx.fill();
+
+    // ── Flame layers (bottom to top: outer → inner) ──────────────────────────
+    // Each layer: height/width driven by overlapping sine waves (turbulence)
+    // Outer orange body  (#19 fb boosts amplitude)
+    const h1 = 14 + (4.5+fb*3)*Math.sin(t*6.7+ph)  + 2.5*Math.sin(t*11.3+ph*1.3) + 1.2*Math.sin(t*17.9+ph*0.7) + fb*6;
+    const w1 =  6 + 1.5*Math.sin(t*5.1+ph)  + 0.8*Math.sin(t* 9.7+ph*2.1);
+    const dx1=      1.8*Math.sin(t*4.3+ph)  + 0.9*Math.sin(t* 8.1+ph*1.7);
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = '#e85000';
+    ctx.beginPath(); ctx.ellipse(tx+dx1, ty-5-h1*0.45, Math.max(2,w1), Math.max(4,h1), dx1*0.06, 0, Math.PI*2); ctx.fill();
+
+    // Bright orange mid layer
+    const h2 = 11 + 3.5*Math.sin(t*8.2+ph*1.1) + 2.0*Math.sin(t*13.7+ph*0.9) + 1.0*Math.sin(t*19.3+ph*1.5);
+    const w2 =  4 + 1.2*Math.sin(t*6.4+ph*1.4) + 0.6*Math.sin(t*10.9+ph*2.3);
+    const dx2=      1.2*Math.sin(t*5.6+ph*1.2) + 0.6*Math.sin(t* 9.2+ph*1.9);
+    ctx.fillStyle = '#ff7700';
+    ctx.beginPath(); ctx.ellipse(tx+dx2, ty-8-h2*0.48, Math.max(1.5,w2), Math.max(3,h2), dx2*0.07, 0, Math.PI*2); ctx.fill();
+
+    // Yellow core
+    const h3 =  8 + 2.8*Math.sin(t*9.8+ph*1.3) + 1.5*Math.sin(t*15.1+ph*0.8) + 0.8*Math.sin(t*22.4+ph*1.1);
+    const w3 =2.8 + 0.9*Math.sin(t*7.3+ph*1.6) + 0.4*Math.sin(t*12.8+ph*2.4);
+    const dx3=      0.8*Math.sin(t*6.9+ph*1.3) + 0.4*Math.sin(t*11.7+ph*2.0);
+    ctx.fillStyle = '#ffcc00';
+    ctx.beginPath(); ctx.ellipse(tx+dx3, ty-11-h3*0.5, Math.max(1,w3), Math.max(2,h3), dx3*0.05, 0, Math.PI*2); ctx.fill();
+
+    // White-hot inner tip
+    const h4 =  4 + 1.8*Math.sin(t*12.4+ph*1.5) + 1.0*Math.sin(t*18.7+ph*0.6);
+    const w4 =1.4 + 0.6*Math.sin(t*10.1+ph*1.8);
+    const dx4=      0.5*Math.sin(t*8.8+ph*1.4);
+    ctx.fillStyle = '#ffffd0';
+    ctx.beginPath(); ctx.ellipse(tx+dx4, ty-15-h4*0.55, Math.max(0.5,w4), Math.max(1,h4), 0, 0, Math.PI*2); ctx.fill();
+
+    ctx.globalAlpha = 1;
+
+    // ── Occasional rising ember sparks ───────────────────────────────────────
+    if (Math.random() < 0.06) {
+      const sx = tx + (Math.random()-0.5)*10;
+      const sy = ty - 18 - Math.random()*8;
+      particles.push(new Particle(sx, sy,
+        (Math.random()-0.5)*25, -40-Math.random()*60,
+        0.4+Math.random()*0.5,
+        Math.random()<0.6 ? '#ffaa20' : '#ff6600',
+        1.2+Math.random()*1.8
+      ));
+    }
+  }
+}
+
+// ─── GAME LOOP ────────────────────────────────────────────────────────────────
+let lastTs = 0;
+let lastCountdownN = -1;
+let lastPhase = '';
+
+function loop(ts) {
+  const dt = Math.min((ts - lastTs)/1000, 0.033);
+  lastTs = ts;
+  phaseT += dt;
+  pollGamepads();  // #22
+
+  if (phase === 'title') {
+    // Nothing to update — title screen overlay is HTML; just keep rendering bg + torches
+  } else if (phase === 'countdown') {
+    if (phaseT >= countdown + 0.5) { phase = 'fight'; phaseT = 0; }
+    // Countdown beep on each new number; Fight! fanfare when it hits 0
+    const cn = Math.ceil(countdown - phaseT);
+    if (cn > 0 && cn !== lastCountdownN) { sfxBeep(cn); lastCountdownN = cn; }
+    if (cn <= 0 && lastCountdownN !== 0) { sfxFight(); lastCountdownN = 0; }
+  } else if (phase === 'fight') {
+    k1.update(dt); k2.update(dt);
+    if (k1.x <= k2.x) { k1.facing=1; k2.facing=-1; }
+    else               { k1.facing=-1; k2.facing=1; }
+    processHits(k1, k2); processHits(k2, k1);
+    processSwordThrows(k1); processSwordThrows(k2);
+    if (k1.dead || k2.dead) {
+      if (k1.dead) p2Wins++; else p1Wins++;
+      phase  = (p1Wins >= 2 || p2Wins >= 2) ? 'game_over' : 'round_over';
+      phaseT = 0;
+      sfxVictory();
+    }
+  } else if (phase === 'round_over') {
+    k1.update(dt); k2.update(dt); // let severed parts settle
+    if (phaseT > 1.2 && keys['Space']) { startRound(); }
+  } else if (phase === 'game_over') {
+    k1.update(dt); k2.update(dt);
+    if (phaseT > 1.2 && keys['Space']) {
+      p1Wins=0; p2Wins=0;
+      k1.severed.length = 0; k2.severed.length = 0;
+      flyingSwords.length = 0;
+      sfxTrumpet();
+      startRound();
+    }
+  }
+
+  // Update particles
+  for (let i = particles.length-1; i >= 0; i--) {
+    particles[i].update(dt);
+    if (particles[i].life <= 0) particles.splice(i, 1);
+  }
+
+  // Update flying swords
+  for (const sw of flyingSwords) sw.update(dt);
+
+  // #13 Decay screen shake
+  if (screenShake.timer > 0) {
+    screenShake.timer -= dt;
+    const t = Math.max(0, screenShake.timer);
+    screenShake.x = (Math.random()*2-1) * screenShake.mag * t;
+    screenShake.y = (Math.random()*2-1) * screenShake.mag * t;
+  } else {
+    screenShake.x = 0; screenShake.y = 0;
+  }
+
+  // #19 Decay torch flicker
+  if (torchFlicker.timer > 0) torchFlicker.timer -= dt;
+
+  // Render
+  ctx.save();
+  ctx.translate(screenShake.x, screenShake.y);  // #13
+  ctx.drawImage(bgCache, 0, 0);
+  drawTorches(ts);
+  for (const sw of flyingSwords) sw.draw();
+  k1.draw(); k2.draw();
+  for (const pt of particles) pt.draw();
+  ctx.restore();  // #13 end shake
+  drawUI();
+  drawPoseHandles();
+
+  prevKeys = Object.assign({}, keys);  // #6 fresh snapshot, no stale keys
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+
+// ─── COLOUR PICKER ────────────────────────────────────────────────────────────
+function initColorPicker(containerId, options, defaultKey, onSelect) {
+  const container = document.getElementById(containerId);
+  for (const opt of options) {
+    const btn = document.createElement('div');
+    btn.className = 'cs-swatch' + (opt.key === defaultKey ? ' active' : '');
+    btn.style.background = opt.hex;
+    btn.title = opt.name;
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.cs-swatch').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      onSelect(opt.key);
+    });
+    container.appendChild(btn);
+  }
+}
+// Armour pickers
+initColorPicker('sw-p1', COLOR_OPTIONS, 'blue', key => k1.setColor(key));
+initColorPicker('sw-p2', COLOR_OPTIONS, 'red',  key => k2.setColor(key));
+// Shield pickers
+initColorPicker('sw-p1-shield', SHIELD_OPTIONS, 'blue', key => k1.setShieldColor(key));
+initColorPicker('sw-p2-shield', SHIELD_OPTIONS, 'red',  key => k2.setShieldColor(key));
+// Shield cross pickers
+initColorPicker('sw-p1-cross', SHIELD_DETAIL_OPTIONS, 'gold', key => k1.setShieldDetail(key));
+initColorPicker('sw-p2-cross', SHIELD_DETAIL_OPTIONS, 'gold', key => k2.setShieldDetail(key));
+// Plumage pickers
+initColorPicker('sw-p1-plume', PLUME_OPTIONS, 'red', key => k1.setPlumeColor(key));
+initColorPicker('sw-p2-plume', PLUME_OPTIONS, 'red', key => k2.setPlumeColor(key));
+
+// Helmet style pickers
+const PLUME_STYLES = [
+  { n:1, name:'Swept' },
+  { n:0, name:'None'  },
+];
+
+function initHelmetPicker(containerId, knight) {
+  const container = document.getElementById(containerId);
+  for (const hs of HELMET_STYLES) {
+    const btn = document.createElement('div');
+    btn.className = 'cs-hbtn' + (hs.n === 1 ? ' active' : '');
+    btn.textContent = hs.name;
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.cs-hbtn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      knight.setHelmet(hs.n);
+    });
+    container.appendChild(btn);
+  }
+}
+initHelmetPicker('hm-p1', k1);
+initHelmetPicker('hm-p2', k2);
+
+function initPlumePicker(containerId, knight) {
+  const container = document.getElementById(containerId);
+  for (const ps of PLUME_STYLES) {
+    const btn = document.createElement('div');
+    btn.className = 'cs-hbtn' + (ps.n === 1 ? ' active' : '');  // Swept is default
+    btn.textContent = ps.name;
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.cs-hbtn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      knight.setPlumeStyle(ps.n);
+    });
+    container.appendChild(btn);
+  }
+}
+initPlumePicker('ps-p1', k1);
+initPlumePicker('ps-p2', k2);
+
+// ─── POSE EDITOR ─────────────────────────────────────────────────────────────
+// Toggle with backtick (`). Drag fist/head/feet to explore positions.
+// Arm uses full 2-segment IK. Legs use 2-segment IK. Head moves freely.
+// Bottom-right panel shows selectable coordinates for copy-paste keyframe design.
+
+const POSE = {
+  on: false,
+  mx: 0, my: 0,          // current mouse position in canvas pixels
+  drag: null,            // { k, part } while dragging
+};
+
+// ── Initialise per-knight pose state ─────────────────────────────────────────
+function poseReset(k) {
+  k._poseArm        = undefined; // undefined = no override (checked in _swordOffset)
+  k._poseElbow      = undefined;
+  k._poseSwordAngle = undefined; // sword rotation relative to forearm
+  k._poseHeadOff    = null;      // { x, y } facing-local offset
+  k._poseFeet       = null;      // { L: {uA,kA}, R: {uA,kA} }
+}
+poseReset(k1); poseReset(k2);
+
+function poseToggle() {
+  POSE.on = !POSE.on;
+  POSE.drag = null;
+  if (!POSE.on) { poseReset(k1); poseReset(k2); }
+  document.getElementById('pose-info').classList.toggle('on', POSE.on);
+}
+
+// ── Forward kinematics: world positions of draggable handles ─────────────────
+// Shoulder world origin (accounting for torso translate)
+function poseShoulderWorld(k) {
+  return { x: k.x + k.facing * 20, y: k.y - 82 }; // -54 tY - 28 shoulder-in-torso
+}
+
+function poseFistWorld(k) {
+  const off = k._swordOffset();
+  const arm = off.arm;
+  const elb = off.elbow;
+  const tf  = arm + elb;
+  const sh  = poseShoulderWorld(k);
+  const tx  = Math.sin(arm)*20 + Math.sin(tf)*14;
+  const ty  = Math.cos(arm)*20 + Math.cos(tf)*14;
+  return { x: sh.x + k.facing*tx, y: sh.y + ty };
+}
+
+// Sword tip is 57px along the blade from the fist (hilt offset -3 + blade 61 - fist offset 14 ≈ 57)
+const SWORD_LEN = 57;
+function poseSwordTipWorld(k) {
+  const off   = k._swordOffset();
+  const fist  = poseFistWorld(k);
+  const totalAngle = off.arm + off.elbow + off.swrd; // arm + forearm bend + sword angle
+  // sword points "up" in local fist space → subtract π/2 to convert to world angle
+  // facing flip: x component inverted
+  const wx = fist.x - k.facing * Math.sin(totalAngle) * SWORD_LEN;
+  const wy = fist.y - Math.cos(totalAngle) * SWORD_LEN;
+  return { x: wx, y: wy };
+}
+
+// IK: given desired tip world pos, solve sword angle (arm+elbow fixed)
+function poseSwordTipIK(k, wx, wy) {
+  const off  = k._swordOffset();
+  const fist = poseFistWorld(k);
+  const dx   = (wx - fist.x) * k.facing; // facing-local
+  const dy   = wy - fist.y;
+  const baseAngle = off.arm + off.elbow;
+  // desired angle of the blade in arm-local space
+  const worldAng = Math.atan2(-dx, -dy);  // "up" from fist
+  k._poseSwordAngle = worldAng - baseAngle;
+}
+
+function poseHeadWorld(k) {
+  const off = k._poseHeadOff || { x: 0, y: 0 };
+  return { x: k.x + k.facing*off.x, y: k.y - 102 + off.y };
+}
+
+function poseFootWorld(k, side) {
+  const pf  = k._poseFeet ? (side < 0 ? k._poseFeet.L : k._poseFeet.R) : null;
+  const uA  = pf ? pf.uA : side * 0.06;
+  const kA  = pf ? pf.kA : 0.12;
+  const hx  = side * 8;
+  const hy  = -54;
+  const knee_x = hx + Math.sin(uA)*24;
+  const knee_y = hy + Math.cos(uA)*24;
+  const fx = knee_x + Math.sin(uA + kA)*22;
+  const fy = knee_y + Math.cos(uA + kA)*22;
+  return { x: k.x + k.facing*fx, y: k.y + fy };
+}
+
+// ── Inverse kinematics helpers ────────────────────────────────────────────────
+function ik2seg(L1, L2, dx, dy, bendSign) {
+  // Returns { a1, a2 } where a1 = segment-1 angle from vertical, a2 = relative joint angle
+  const d   = Math.min(Math.sqrt(dx*dx + dy*dy), L1 + L2 - 0.01);
+  const cos2 = Math.max(-1, Math.min(1, (d*d - L1*L1 - L2*L2) / (2*L1*L2)));
+  const a2   = bendSign * Math.acos(cos2);                    // joint angle (signed)
+  const ang  = Math.atan2(dx, dy);                            // target direction from vertical
+  const sinD = Math.max(-1, Math.min(1, L2*Math.sin(Math.abs(a2)) / Math.max(d, 0.001)));
+  const a1   = ang - bendSign * Math.asin(sinD);
+  return { a1, a2 };
+}
+
+function poseArmIK(k, wx, wy) {
+  const sh  = poseShoulderWorld(k);
+  const dx  = (wx - sh.x) * k.facing;   // facing-local x
+  const dy  = wy - sh.y;
+  const r   = ik2seg(20, 14, dx, dy, -1); // -1 = elbow bends inward
+  k._poseArm   = r.a1;
+  k._poseElbow = r.a2;
+}
+
+function poseLegIK(k, side, wx, wy) {
+  const hX  = k.x + k.facing * side * 8;  // #5 use hX/hY consistently
+  const hY  = k.y - 54;
+  const lx  = (wx - hX) * k.facing;       // facing-local x from hip
+  const ly  = wy - hY;
+  const r   = ik2seg(24, 22, lx, ly, 1);            // +1 = knee bends forward
+  const entry = { uA: r.a1, kA: r.a2 };
+  if (!k._poseFeet) k._poseFeet = { L: { uA: side*0.06, kA: 0.12 }, R: { uA: side*0.06, kA: 0.12 } };
+  if (side < 0) k._poseFeet.L = entry; else k._poseFeet.R = entry;
+}
+
+// ── Mouse interaction ─────────────────────────────────────────────────────────
+function poseCanvasXY(e) {
+  const r  = canvas.getBoundingClientRect();
+  const sx = canvas.width  / r.width;
+  const sy = canvas.height / r.height;
+  return { x: (e.clientX - r.left)*sx, y: (e.clientY - r.top)*sy };
+}
+
+canvas.addEventListener('mousemove', e => {
+  const { x, y } = poseCanvasXY(e);
+  POSE.mx = x; POSE.my = y;
+  if (!POSE.on || !POSE.drag) return;
+  const { k, part } = POSE.drag;
+  if      (part === 'fist')  poseArmIK(k, x, y);
+  else if (part === 'tip')   poseSwordTipIK(k, x, y);
+  else if (part === 'head')  { k._poseHeadOff = { x: (x - k.x)*k.facing, y: y - (k.y - 102) }; }
+  else if (part === 'footL') poseLegIK(k, -1, x, y);
+  else if (part === 'footR') poseLegIK(k,  1, x, y);
+});
+
+canvas.addEventListener('mousedown', e => {
+  if (!POSE.on) return;
+  const { x, y } = poseCanvasXY(e);
+  for (const k of [k1, k2]) {
+    const handles = [
+      { part:'fist',  pos: poseFistWorld(k) },
+      { part:'tip',   pos: k.hasSword ? poseSwordTipWorld(k) : null },
+      { part:'head',  pos: poseHeadWorld(k) },
+      { part:'footL', pos: poseFootWorld(k, -1) },
+      { part:'footR', pos: poseFootWorld(k,  1) },
+    ];
+    for (const { part, pos } of handles) {
+      if (!pos) continue;
+      if (Math.hypot(x - pos.x, y - pos.y) < 16) {
+        POSE.drag = { k, part };
+        // Seed overrides from current state so nothing snaps on first drag
+        if ((part === 'fist' || part === 'tip') && k._poseArm === undefined) {
+          const off = k._swordOffset();
+          k._poseArm        = off.arm;
+          k._poseElbow      = off.elbow;
+          k._poseSwordAngle = off.swrd;
+        }
+        return;
+      }
+    }
+  }
+});
+
+canvas.addEventListener('mouseup', () => { POSE.drag = null; });
+
+// ── Draw handles on canvas ────────────────────────────────────────────────────
+function drawPoseHandles() {
+  if (!POSE.on) { updatePoseInfo(); return; }
+
+  ctx.save();
+  for (const k of [k1, k2]) {
+    // Draw line from fist to sword tip when sword present
+    if (k.hasSword && k.parts.swordArm) {
+      const fist = poseFistWorld(k);
+      const tip  = poseSwordTipWorld(k);
+      ctx.strokeStyle = 'rgba(220,220,100,0.4)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(fist.x, fist.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
+    }
+    const handles = [
+      { part:'fist',  pos: poseFistWorld(k),                              col:'#ffff40', lbl:'fist' },
+      { part:'tip',   pos: k.hasSword && k.parts.swordArm ? poseSwordTipWorld(k) : null, col:'#ff9020', lbl:'tip'  },
+      { part:'head',  pos: poseHeadWorld(k),                              col:'#40ff90', lbl:'head' },
+      { part:'footL', pos: poseFootWorld(k,-1),                           col:'#60b0ff', lbl:'fL'   },
+      { part:'footR', pos: poseFootWorld(k, 1),                           col:'#60b0ff', lbl:'fR'   },
+    ];
+    for (const { part, pos, col, lbl } of handles) {
+      const hot = Math.hypot(POSE.mx - pos.x, POSE.my - pos.y) < 16;
+      const drag = POSE.drag?.k === k && POSE.drag?.part === part;
+      const r = (hot || drag) ? 10 : 7;
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI*2);
+      ctx.fillStyle = col + (drag ? 'dd' : hot ? 'aa' : '55');
+      ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = drag ? 2.5 : 1.5;
+      ctx.stroke();
+      ctx.fillStyle = col; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(lbl, pos.x, pos.y - 13);
+    }
+  }
+
+  // Crosshair at mouse
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(POSE.mx - 10, POSE.my); ctx.lineTo(POSE.mx + 10, POSE.my); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(POSE.mx, POSE.my - 10); ctx.lineTo(POSE.mx, POSE.my + 10); ctx.stroke();
+
+  ctx.restore();
+
+  // #23 Pose editor hint — always visible in bottom-left
+  ctx.save();
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = POSE.on ? 'rgba(200,220,100,0.9)' : 'rgba(140,130,80,0.55)';
+  ctx.fillText(POSE.on ? '` exit pose editor' : '` pose editor', 8, H - 8);
+  ctx.restore();
+
+  updatePoseInfo();
+}
+
+// ── Coordinate display (selectable text div) ──────────────────────────────────
+function fmt(n) { return n.toFixed(3); }
+function fmtXY(x, y) { return `(${x.toFixed(1)}, ${y.toFixed(1)})`; }
+
+function updatePoseInfo() {
+  const div = document.getElementById('pose-info');
+  if (!POSE.on) return;
+
+  let t = '` to exit  |  POSE EDITOR\n\n';
+
+  for (const [label, k] of [['K1 ' + k1.colorName, k1], ['K2 ' + k2.colorName, k2]]) {
+    const off   = k._swordOffset();
+    const fist  = poseFistWorld(k);
+    const head  = poseHeadWorld(k);
+    const footL = poseFootWorld(k, -1);
+    const footR = poseFootWorld(k,  1);
+    const tip   = k.hasSword && k.parts.swordArm ? poseSwordTipWorld(k) : null;
+
+    const fLoc  = fmtXY((fist.x  - k.x)*k.facing, fist.y  - k.y);
+    const hLoc  = fmtXY((head.x  - k.x)*k.facing, head.y  - k.y);
+    const flLoc = fmtXY((footL.x - k.x)*k.facing, footL.y - k.y);
+    const frLoc = fmtXY((footR.x - k.x)*k.facing, footR.y - k.y);
+    const tLoc  = tip ? fmtXY((tip.x - k.x)*k.facing, tip.y - k.y) : null;
+    const pf    = k._poseFeet;
+
+    t += `── ${label} ──────────────────\n`;
+    t += `  arm: ${fmt(off.arm)}   elbow: ${fmt(off.elbow)}   swrd: ${fmt(off.swrd)}\n`;
+    t += `  fist  local${fLoc}  world(${fist.x.toFixed(0)},${fist.y.toFixed(0)})\n`;
+    if (tip) t += `  tip   local${tLoc}  world(${tip.x.toFixed(0)},${tip.y.toFixed(0)})\n`;
+    t += `  head  local${hLoc}  world(${head.x.toFixed(0)},${head.y.toFixed(0)})\n`;
+    t += `  footL local${flLoc}  uA:${pf?fmt(pf.L.uA):'—'}  kA:${pf?fmt(pf.L.kA):'—'}\n`;
+    t += `  footR local${frLoc}  uA:${pf?fmt(pf.R.uA):'—'}  kA:${pf?fmt(pf.R.kA):'—'}\n\n`;
+  }
+
+  t += `mouse world (${POSE.mx.toFixed(0)}, ${POSE.my.toFixed(0)})`;
+  div.textContent = t;
+}
+
+// Battle! button — show title screen until clicked
+document.getElementById('battle-btn').addEventListener('click', () => {
+  if (AC.state === 'suspended') AC.resume();
+  sfxTrumpet();
+  document.getElementById('title-screen').style.display = 'none';
+  phase = 'countdown';
+  phaseT = 0;
+  lastCountdownN = -1;
+});
+
+// Reset Match button — clears score, clears all ground parts, replays fanfare
+document.getElementById('reset-btn').addEventListener('click', () => {
+  if (AC.state === 'suspended') AC.resume();
+  p1Wins = 0; p2Wins = 0;
+  k1.severed.length = 0;
+  k2.severed.length = 0;
+  particles.length  = 0;
+  flyingSwords.length = 0;
+  sfxTrumpet();
+  phase = 'countdown'; phaseT = 0; countdown = 3; lastCountdownN = -1;
+  k1.reset(); k2.reset();
+  document.getElementById('title-screen').style.display = 'none';
+});
+</script>
+</body>
+</html>
