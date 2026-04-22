@@ -2896,6 +2896,246 @@ document.getElementById('reset-btn').addEventListener('click', () => {
   k1.reset(); k2.reset();
   document.getElementById('title-screen').style.display = 'none';
 });
+
+// ─── MULTIPLAYER ─────────────────────────────────────────────────────────────
+let netMode     = 'local'; // 'local' | 'host' | 'join'
+let peer        = null;
+let conn        = null;
+let remoteKeys  = {};
+let lastReceivedState = null;
+let mpP1Ready   = false;
+let mpP2Ready   = false;
+
+function mpStatus(msg) {
+  document.getElementById('mp-status').innerHTML = msg;
+}
+
+function showReadyBtns() {
+  document.getElementById('p1-ready-btn').style.display = '';
+  document.getElementById('p2-ready-btn').style.display = '';
+}
+
+function updateReadyBtnsUI(r1, r2) {
+  document.getElementById('p1-ready-btn').classList.toggle('active', !!r1);
+  document.getElementById('p2-ready-btn').classList.toggle('active', !!r2);
+}
+
+function mpStartMatch() {
+  mpP1Ready = false; mpP2Ready = false;
+  updateReadyBtnsUI(false, false);
+  if (AC.state === 'suspended') AC.resume();
+  sfxTrumpet();
+  document.getElementById('title-screen').style.display = 'none';
+  p1Wins = 0; p2Wins = 0;
+  k1.severed.length = 0; k2.severed.length = 0;
+  particles.length = 0; flyingSwords.length = 0;
+  phase = 'countdown'; phaseT = 0; countdown = 3; lastCountdownN = -1;
+  k1.reset(); k2.reset();
+}
+
+function checkBothReady() {
+  if (mpP1Ready && mpP2Ready && netMode === 'host') mpStartMatch();
+}
+
+// ── State serialization ───────────────────────────────────────────────────────
+function serKnight(k) {
+  return {
+    x:k.x, y:k.y, vx:k.vx, vy:k.vy,
+    facing:k.facing, onGround:k.onGround, crouching:k.crouching,
+    walkPhase:k.walkPhase, isWalking:k.isWalking, isMoving:k.isMoving,
+    stamina:k.stamina, hasSword:k.hasSword, hitFlash:k.hitFlash, stagger:k.stagger,
+    dead:k.dead, exhausted:k.exhausted, idleT:k.idleT, breathStress:k.breathStress,
+    helmetKnockedOff:k.helmetKnockedOff, bashHits:k.bashHits,
+    throwCooldown:k.throwCooldown, counterWindow:k.counterWindow, wasOnGround:k.wasOnGround,
+    parts:{...k.parts}, dents:{...k.dents},
+    atk:k.atk?{...k.atk}:null, blk:k.blk?{...k.blk}:null,
+    atkBuffer:k.atkBuffer?{...k.atkBuffer}:null,
+    colorKey:k.colorKey, shieldKey:k.shieldKey, detailKey:k.detailKey,
+    plumeKey:k.plumeKey, plumeStyle:k.plumeStyle, helmetStyle:k.helmetStyle,
+    colorName:k.colorName,
+    severed:k.severed.map(s=>({
+      type:s.type, x:s.x, y:s.y, vx:s.vx, vy:s.vy,
+      angle:s.angle, angV:s.angV, facing:s.facing, landed:s.landed, hasSword:s.hasSword,
+    })),
+  };
+}
+
+function serState() {
+  return {
+    phase, phaseT, p1Wins, p2Wins, countdown, lastCountdownN,
+    ss:{...screenShake}, tf:{...torchFlicker},
+    k1:serKnight(k1), k2:serKnight(k2),
+    swords:flyingSwords.map(sw=>({
+      x:sw.x, y:sw.y, vx:sw.vx, vy:sw.vy,
+      angle:sw.angle, angV:sw.angV, hit:sw.hit, landed:sw.landed,
+      owner:sw.owner===k1?1:2,
+    })),
+    pts:particles.slice(0,120).map(p=>({
+      x:p.x, y:p.y, vx:p.vx, vy:p.vy,
+      life:p.life, maxLife:p.maxLife, color:p.color, size:p.size,
+    })),
+    mpP1Ready, mpP2Ready,
+  };
+}
+
+function applyKnight(k, s) {
+  k.x=s.x; k.y=s.y; k.vx=s.vx; k.vy=s.vy;
+  k.facing=s.facing; k.onGround=s.onGround; k.crouching=s.crouching;
+  k.walkPhase=s.walkPhase; k.isWalking=s.isWalking; k.isMoving=s.isMoving;
+  k.stamina=s.stamina; k.hasSword=s.hasSword; k.hitFlash=s.hitFlash; k.stagger=s.stagger;
+  k.dead=s.dead; k.exhausted=s.exhausted; k.idleT=s.idleT; k.breathStress=s.breathStress;
+  k.helmetKnockedOff=s.helmetKnockedOff; k.bashHits=s.bashHits;
+  k.throwCooldown=s.throwCooldown; k.counterWindow=s.counterWindow; k.wasOnGround=s.wasOnGround;
+  k.parts={...s.parts}; k.dents={...s.dents};
+  k.atk=s.atk?{...s.atk}:null; k.blk=s.blk?{...s.blk}:null;
+  k.atkBuffer=s.atkBuffer?{...s.atkBuffer}:null;
+  if (k.colorKey!==s.colorKey||k.shieldKey!==s.shieldKey||
+      k.detailKey!==s.detailKey||k.plumeKey!==s.plumeKey||
+      k.plumeStyle!==s.plumeStyle||k.helmetStyle!==s.helmetStyle) {
+    k.colorKey=s.colorKey; k.shieldKey=s.shieldKey; k.detailKey=s.detailKey;
+    k.plumeKey=s.plumeKey; k.plumeStyle=s.plumeStyle; k.helmetStyle=s.helmetStyle;
+    k.colorName=s.colorName; k._rebuildPal();
+  }
+  while (k.severed.length > s.severed.length) k.severed.pop();
+  while (k.severed.length < s.severed.length) {
+    const sd = s.severed[k.severed.length];
+    k.severed.push(new SeveredPart(sd.type,sd.x,sd.y,sd.vx,sd.vy,sd.facing,k.pal,k.helmetStyle,sd.hasSword,k.plumeStyle));
+  }
+  for (let i=0;i<s.severed.length;i++) {
+    const d=k.severed[i], sr=s.severed[i];
+    d.x=sr.x; d.y=sr.y; d.vx=sr.vx; d.vy=sr.vy;
+    d.angle=sr.angle; d.angV=sr.angV; d.landed=sr.landed; d.hasSword=sr.hasSword;
+  }
+}
+
+function applyState(s) {
+  const prevPhase = phase;
+  const prevBeepN = lastCountdownN;
+  phase=s.phase; phaseT=s.phaseT; p1Wins=s.p1Wins; p2Wins=s.p2Wins;
+  countdown=s.countdown; lastCountdownN=s.lastCountdownN;
+  screenShake.x=s.ss.x; screenShake.y=s.ss.y; screenShake.timer=s.ss.timer; screenShake.mag=s.ss.mag;
+  torchFlicker.timer=s.tf.timer; torchFlicker.intensity=s.tf.intensity;
+  applyKnight(k1, s.k1); applyKnight(k2, s.k2);
+  // Flying swords
+  while (flyingSwords.length > s.swords.length) flyingSwords.pop();
+  while (flyingSwords.length < s.swords.length) {
+    const sd=s.swords[flyingSwords.length];
+    const ow=sd.owner===1?k1:k2;
+    flyingSwords.push(new FlyingSword(sd.x,sd.y,sd.vx,sd.vy,ow,ow.pal));
+  }
+  for (let i=0;i<s.swords.length;i++) {
+    const d=flyingSwords[i], sr=s.swords[i];
+    d.x=sr.x; d.y=sr.y; d.vx=sr.vx; d.vy=sr.vy;
+    d.angle=sr.angle; d.angV=sr.angV; d.hit=sr.hit; d.landed=sr.landed;
+  }
+  // Particles
+  while (particles.length > s.pts.length) particles.pop();
+  while (particles.length < s.pts.length) {
+    const pd=s.pts[particles.length];
+    const np=new Particle(pd.x,pd.y,pd.vx,pd.vy,pd.life,pd.color,pd.size);
+    np.maxLife=pd.maxLife; particles.push(np);
+  }
+  for (let i=0;i<s.pts.length;i++) {
+    const d=particles[i], sr=s.pts[i];
+    d.x=sr.x; d.y=sr.y; d.life=sr.life; d.maxLife=sr.maxLife; d.color=sr.color; d.size=sr.size;
+  }
+  // SFX for phase transitions
+  if (prevPhase!==phase) {
+    if (phase==='fight') sfxFight();
+    else if (phase==='round_over'||phase==='game_over') sfxVictory();
+  }
+  if (phase==='countdown' && prevBeepN!==lastCountdownN) {
+    if (lastCountdownN>0) sfxBeep(lastCountdownN);
+    else if (lastCountdownN===0) sfxFight();
+  }
+  updateReadyBtnsUI(s.mpP1Ready, s.mpP2Ready);
+}
+
+// ── Connection handling ───────────────────────────────────────────────────────
+function setupConn(c) {
+  conn = c;
+  conn.on('data', data => {
+    if      (data.type==='keys')    remoteKeys = data.keys;
+    else if (data.type==='state')   lastReceivedState = data.data;
+    else if (data.type==='p2Ready') { mpP2Ready=true; updateReadyBtnsUI(mpP1Ready,mpP2Ready); checkBothReady(); }
+  });
+  conn.on('close', () => {
+    mpStatus('Connection closed.'); netMode='local';
+    document.getElementById('p1-ready-btn').style.display='none';
+    document.getElementById('p2-ready-btn').style.display='none';
+  });
+  conn.on('error', err => mpStatus('Error: '+err));
+}
+
+function initHost() {
+  netMode='host'; mpStatus('Creating room…');
+  peer = new Peer();
+  peer.on('open', id => {
+    const url = window.location.href.split('?')[0]+'?join='+id;
+    mpStatus('Share this link with your opponent:<br><span class="mp-link" onclick="navigator.clipboard.writeText(\''+url+'\').then(()=>mpStatus(\'Copied!\'))" title="Click to copy">'+url+'</span><br>Waiting for opponent…');
+  });
+  peer.on('connection', c => {
+    setupConn(c);
+    mpStatus('Opponent connected! Click <b>P1 Ready</b> when ready.');
+    showReadyBtns();
+  });
+  peer.on('error', err => mpStatus('Peer error: '+err));
+}
+
+function initJoin(peerId) {
+  netMode='join'; mpStatus('Connecting…');
+  peer = new Peer();
+  peer.on('open', () => {
+    const c = peer.connect(peerId, {reliable:false, serialization:'json'});
+    setupConn(c);
+    c.on('open', () => {
+      mpStatus('Connected! Click <b>P2 Ready</b> when ready.');
+      document.getElementById('title-screen').style.display='none';
+      showReadyBtns();
+    });
+  });
+  peer.on('error', err => mpStatus('Peer error: '+err));
+}
+
+// ── Button handlers ───────────────────────────────────────────────────────────
+document.getElementById('host-btn').addEventListener('click', () => {
+  if (AC.state==='suspended') AC.resume();
+  initHost();
+});
+
+document.getElementById('join-btn').addEventListener('click', () => {
+  if (AC.state==='suspended') AC.resume();
+  const urlParams = new URLSearchParams(window.location.search);
+  const joinId = urlParams.get('join');
+  if (joinId) { initJoin(joinId); return; }
+  const id = prompt('Enter host code:');
+  if (id) initJoin(id.trim());
+});
+
+document.getElementById('p1-ready-btn').addEventListener('click', () => {
+  if (netMode!=='host') return;
+  mpP1Ready=true; updateReadyBtnsUI(mpP1Ready,mpP2Ready); checkBothReady();
+});
+
+document.getElementById('p2-ready-btn').addEventListener('click', () => {
+  if (netMode!=='join') return;
+  if (conn&&conn.open) conn.send({type:'p2Ready'});
+  document.getElementById('p2-ready-btn').classList.add('active');
+});
+
+// ── Auto-join from URL ────────────────────────────────────────────────────────
+(function() {
+  const joinId = new URLSearchParams(window.location.search).get('join');
+  if (!joinId) return;
+  // Show a "Connect" button instead of the normal buttons
+  document.getElementById('join-btn').textContent = '⚐  Connect to Host';
+  mpStatus('Host code detected — click Connect to Host.');
+  // Auto-connect on first user interaction (audio context + PeerJS need gesture)
+  document.getElementById('join-btn').addEventListener('click', () => {
+    if (AC.state==='suspended') AC.resume();
+    initJoin(joinId);
+  }, {once:true});
+})();
 </script>
 </body>
 </html>
