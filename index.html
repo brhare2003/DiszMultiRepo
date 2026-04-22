@@ -2509,8 +2509,7 @@ function loop(ts) {
       }
     } else if (phase === 'round_over') {
       k1.update(dt); k2.update(dt); // let severed parts settle
-      if (phaseT > 1.2 && keys['Space'] && netMode !== 'host') { startRound(); }
-      else if (phaseT > 1.2 && keys['Space'] && netMode === 'host') { startRound(); }
+      if (phaseT > 1.2 && keys['Space']) { startRound(); }
     } else if (phase === 'game_over') {
       k1.update(dt); k2.update(dt);
       if (phaseT > 1.2 && keys['Space']) {
@@ -3147,18 +3146,12 @@ document.getElementById('p2-ready-btn').addEventListener('click', () => {
   document.getElementById('p2-ready-btn').classList.add('active');
 });
 
-// ── Auto-join from URL ────────────────────────────────────────────────────────
+// ── Auto-join from URL: pre-label button so joiner knows to click it ─────────
 (function() {
   const joinId = new URLSearchParams(window.location.search).get('join');
   if (!joinId) return;
-  // Show a "Connect" button instead of the normal buttons
   document.getElementById('join-btn').textContent = '⚐  Connect to Host';
-  mpStatus('Host code detected — click Connect to Host.');
-  // Auto-connect on first user interaction (audio context + PeerJS need gesture)
-  document.getElementById('join-btn').addEventListener('click', () => {
-    if (AC.state==='suspended') AC.resume();
-    initJoin(joinId);
-  }, {once:true});
+  mpStatus('Host code detected — click <b>Connect to Host</b> to join.');
 })();
 </script>
 </body>
