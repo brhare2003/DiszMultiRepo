@@ -98,13 +98,17 @@ canvas { display:block; border:3px solid #7a5c1a; }
 .mp-link { color:#80b8f0; cursor:pointer; text-decoration:underline; font-size:11px; }
 #bottom-controls { display:flex; gap:10px; align-items:center; margin-top:10px; justify-content:center; flex-wrap:wrap; }
 .ready-btn {
-  font:700 11px 'Cinzel',serif; color:#60c070; letter-spacing:2px;
-  background:linear-gradient(160deg,#061006,#0e1e0a,#061006);
-  border:2px solid #2a5a24; padding:7px 16px; cursor:pointer;
+  font:700 11px 'Cinzel',serif; color:#e08830; letter-spacing:2px;
+  background:linear-gradient(160deg,#1a0e04,#2c1a08,#1a0e04);
+  border:2px solid #8a4a10; padding:7px 16px; cursor:pointer;
   text-transform:uppercase; transition:all 0.18s;
 }
-.ready-btn:hover { border-color:#50a040; color:#80e090; box-shadow:0 0 14px rgba(60,160,50,0.3); }
-.ready-btn.active { border-color:#80e090; color:#c0ffc8; box-shadow:0 0 14px rgba(60,200,80,0.45); }
+.ready-btn:hover { border-color:#c07020; color:#f0b060; box-shadow:0 0 14px rgba(200,120,0,0.3); }
+.ready-btn.active {
+  background:linear-gradient(160deg,#061006,#0e1e0a,#061006);
+  border-color:#80e090; color:#c0ffc8;
+  box-shadow:0 0 14px rgba(60,200,80,0.45);
+}
 #pose-info {
   display:none; position:absolute; bottom:6px; right:6px;
   background:rgba(0,0,0,0.88); border:1px solid #c8a020;
@@ -141,9 +145,9 @@ canvas { display:block; border:3px solid #7a5c1a; }
   <span style="color:#f08080">P2:</span> Arrows move &bull; <b>P</b>/<b>L</b>/<b>.</b> attack Hi/Mid/Lo &bull; <b>[</b>/<b>;</b>/<b>/</b> block Hi/Mid/Lo &bull; <b>O</b> throw sword
 </div>
 <div id="bottom-controls">
-  <button id="p1-ready-btn" class="ready-btn" style="display:none">⚔ P1 Ready</button>
+  <button id="p1-ready-btn" class="ready-btn" style="display:none">P1 Not Ready</button>
   <button id="reset-btn">&#9876; &nbsp; Reset Match &nbsp; &#9876;</button>
-  <button id="p2-ready-btn" class="ready-btn" style="display:none">⚔ P2 Ready</button>
+  <button id="p2-ready-btn" class="ready-btn" style="display:none">P2 Not Ready</button>
 </div>
 <div id="color-select">
   <div class="cs-player" id="cs-p1">
@@ -2981,8 +2985,12 @@ function unlockColorPanels() {
 }
 
 function updateReadyBtnsUI(r1, r2) {
-  document.getElementById('p1-ready-btn').classList.toggle('active', !!r1);
-  document.getElementById('p2-ready-btn').classList.toggle('active', !!r2);
+  const b1 = document.getElementById('p1-ready-btn');
+  const b2 = document.getElementById('p2-ready-btn');
+  b1.classList.toggle('active', !!r1);
+  b2.classList.toggle('active', !!r2);
+  b1.textContent = r1 ? 'P1 Ready' : 'P1 Not Ready';
+  b2.textContent = r2 ? 'P2 Ready' : 'P2 Not Ready';
 }
 
 function mpStartMatch() {
@@ -3192,7 +3200,7 @@ document.getElementById('p1-ready-btn').addEventListener('click', () => {
 document.getElementById('p2-ready-btn').addEventListener('click', () => {
   if (netMode!=='join') return;
   if (conn&&conn.open) conn.send({type:'p2Ready'});
-  document.getElementById('p2-ready-btn').classList.add('active');
+  updateReadyBtnsUI(false, true);
 });
 
 // ── Auto-join from URL: pre-label button so joiner knows to click it ─────────
