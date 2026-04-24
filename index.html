@@ -1513,13 +1513,13 @@ class Knight {
     const kickSide = this.parts.legR ? 1 : -1; // prefer right leg
     const t = this.atk.timer;
     if (this.atk.phase === 'windup')
-      return { side: kickSide, uA: lerp(kickSide * 0.06, -0.5, t / WINDUP_T), kA: lerp(0.12, 0.9, t / WINDUP_T) };
+      return { side: kickSide, uA: lerp(kickSide * 0.06, -0.3, t / WINDUP_T), kA: lerp(0.12, -0.7, t / WINDUP_T) };
     if (this.atk.phase === 'active')
-      return { side: kickSide, uA: lerp(-0.5, 1.1, t / ACTIVE_T), kA: lerp(0.9, 0.15, t / ACTIVE_T) };
+      return { side: kickSide, uA: lerp(-0.3, 0.85, t / ACTIVE_T), kA: lerp(-0.7, 0.1, t / ACTIVE_T) };
     if (this.atk.phase === 'extended')
-      return { side: kickSide, uA: 1.1, kA: 0.15 };
+      return { side: kickSide, uA: 0.85, kA: 0.1 };
     if (this.atk.phase === 'recover')
-      return { side: kickSide, uA: lerp(1.1, kickSide * 0.06, t / RECOVER_T), kA: lerp(0.15, 0.12, t / RECOVER_T) };
+      return { side: kickSide, uA: lerp(0.85, kickSide * 0.06, t / RECOVER_T), kA: lerp(0.1, 0.12, t / RECOVER_T) };
     return null;
   }
 
