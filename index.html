@@ -2111,7 +2111,7 @@ function processHits(atk, def) {
   // Extended blade parry — absorbs any hit, costs heavy stamina
   if (def.atk?.phase === 'extended' && def.parts.swordArm && def.hasSword) {
     def.stamina  = Math.max(0, def.stamina - 35);
-    atk.stagger  = 0.15;
+    atk.stagger  = 1.0;
     atk.atk.hit  = true;
     def.hitFlash = 0.06;
     const sX = (atk.x + def.x) / 2;
@@ -2124,7 +2124,7 @@ function processHits(atk, def) {
   // Zone-based block check
   if (def.blk && def.blk.zone === blockZone) {
     def.stamina  = Math.max(0, def.stamina - 12);
-    atk.stagger  = 0.12;
+    atk.stagger  = 1.0;
     atk.atk.hit  = true;
     def.hitFlash = 0.06;
     def.counterWindow = 0.15;  // #15 brief fast-riposte window after successful block
