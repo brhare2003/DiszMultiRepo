@@ -2609,16 +2609,16 @@ function initColorPicker(containerId, options, defaultKey, onSelect) {
 }
 // Armour pickers
 initColorPicker('sw-p1', COLOR_OPTIONS, 'blue', key => k1.setColor(key));
-initColorPicker('sw-p2', COLOR_OPTIONS, 'red',  key => k2.setColor(key));
+initColorPicker('sw-p2', COLOR_OPTIONS, 'red',  key => { k2.setColor(key); mpSendColorChange('armor', key); });
 // Shield pickers
 initColorPicker('sw-p1-shield', SHIELD_OPTIONS, 'blue', key => k1.setShieldColor(key));
-initColorPicker('sw-p2-shield', SHIELD_OPTIONS, 'red',  key => k2.setShieldColor(key));
+initColorPicker('sw-p2-shield', SHIELD_OPTIONS, 'red',  key => { k2.setShieldColor(key); mpSendColorChange('shield', key); });
 // Shield cross pickers
 initColorPicker('sw-p1-cross', SHIELD_DETAIL_OPTIONS, 'gold', key => k1.setShieldDetail(key));
-initColorPicker('sw-p2-cross', SHIELD_DETAIL_OPTIONS, 'gold', key => k2.setShieldDetail(key));
+initColorPicker('sw-p2-cross', SHIELD_DETAIL_OPTIONS, 'gold', key => { k2.setShieldDetail(key); mpSendColorChange('cross', key); });
 // Plumage pickers
 initColorPicker('sw-p1-plume', PLUME_OPTIONS, 'red', key => k1.setPlumeColor(key));
-initColorPicker('sw-p2-plume', PLUME_OPTIONS, 'red', key => k2.setPlumeColor(key));
+initColorPicker('sw-p2-plume', PLUME_OPTIONS, 'red', key => { k2.setPlumeColor(key); mpSendColorChange('plume', key); });
 
 // Helmet style pickers
 const PLUME_STYLES = [
@@ -2641,7 +2641,22 @@ function initHelmetPicker(containerId, knight) {
   }
 }
 initHelmetPicker('hm-p1', k1);
-initHelmetPicker('hm-p2', k2);
+function initHelmetPickerP2(containerId, knight) {
+  const container = document.getElementById(containerId);
+  for (const hs of HELMET_STYLES) {
+    const btn = document.createElement('div');
+    btn.className = 'cs-hbtn' + (hs.n === 1 ? ' active' : '');
+    btn.textContent = hs.name;
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.cs-hbtn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      knight.setHelmet(hs.n);
+      mpSendColorChange('helmet', hs.n);
+    });
+    container.appendChild(btn);
+  }
+}
+initHelmetPickerP2('hm-p2', k2);
 
 function initPlumePicker(containerId, knight) {
   const container = document.getElementById(containerId);
@@ -2658,7 +2673,22 @@ function initPlumePicker(containerId, knight) {
   }
 }
 initPlumePicker('ps-p1', k1);
-initPlumePicker('ps-p2', k2);
+function initPlumePickerP2(containerId, knight) {
+  const container = document.getElementById(containerId);
+  for (const ps of PLUME_STYLES) {
+    const btn = document.createElement('div');
+    btn.className = 'cs-hbtn' + (ps.n === 1 ? ' active' : '');
+    btn.textContent = ps.name;
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.cs-hbtn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      knight.setPlumeStyle(ps.n);
+      mpSendColorChange('plumeStyle', ps.n);
+    });
+    container.appendChild(btn);
+  }
+}
+initPlumePickerP2('ps-p2', k2);
 
 // ─── POSE EDITOR ─────────────────────────────────────────────────────────────
 // Toggle with backtick (`). Drag fist/head/feet to explore positions.
@@ -3131,6 +3161,10 @@ function applyState(s) {
   updateReadyBtnsUI(s.mpP1Ready, s.mpP2Ready);
 }
 
+function mpSendColorChange(part, value) {
+  if (netMode === 'join' && conn && conn.open) conn.send({type:'colorChange', part, value});
+}
+
 // ── Connection handling ───────────────────────────────────────────────────────
 function setupConn(c) {
   conn = c;
@@ -3138,6 +3172,15 @@ function setupConn(c) {
     if      (data.type==='keys')    remoteKeys = data.keys;
     else if (data.type==='state')   lastReceivedState = data.data;
     else if (data.type==='p2Ready') { mpP2Ready=true; updateReadyBtnsUI(mpP1Ready,mpP2Ready); checkBothReady(); }
+    else if (data.type==='colorChange') {
+      const { part, value } = data;
+      if      (part==='armor')       k2.setColor(value);
+      else if (part==='shield')      k2.setShieldColor(value);
+      else if (part==='cross')       k2.setShieldDetail(value);
+      else if (part==='plume')       k2.setPlumeColor(value);
+      else if (part==='helmet')      k2.setHelmet(value);
+      else if (part==='plumeStyle')  k2.setPlumeStyle(value);
+    }
   });
   conn.on('close', () => {
     netMode='local'; hideLobby(); unlockColorPanels();
