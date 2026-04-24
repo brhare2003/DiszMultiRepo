@@ -1107,6 +1107,7 @@ class Knight {
     const _hasSwordAtk = this.parts.swordArm && this.hasSword;
     const _atkCost     = _hasSwordAtk ? ATK_COST : BASH_COST;
     const _noArms = !this.parts.swordArm && !this.parts.shieldArm;
+    const _noLegs = !this.parts.legL && !this.parts.legR;
     const _oneLeg = (this.parts.legL ? 1 : 0) + (this.parts.legR ? 1 : 0) === 1;
     const _getType = swordType => {
       if (_hasSwordAtk) return swordType;
@@ -1117,6 +1118,7 @@ class Knight {
       }
       // No sword arm — bash with shield arm, or kick/headbutt if no arms at all
       if (!_noArms) return 'bash';
+      if (_noLegs) return null;  // no arms and no legs = can't attack
       return (_oneLeg) ? 'headbutt' : 'kick';
     };
     const _keyMap = { high:c.atkH, mid:c.atkM, low:c.atkL, h1:c.h1, h2:c.h2, h3:c.h3, h4:c.h4, h5:c.h5, bash:c.atkM, punchH:c.atkH, punchM:c.atkM, punchL:c.atkL, kick:c.atkM, headbutt:c.atkM };
@@ -2094,7 +2096,7 @@ function processHits(atk, def) {
   if (zone === 'punchH') zone = 'high';
   else if (zone === 'punchM') zone = 'mid';
   else if (zone === 'punchL') zone = 'low';
-  else if (zone === 'kick') zone = 'mid';
+  else if (zone === 'kick') zone = 'low';
   else if (zone === 'headbutt') zone = 'high';
 
   // High attacks whiff over crouching defenders
