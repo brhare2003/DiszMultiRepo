@@ -2110,10 +2110,9 @@ function processHits(atk, def) {
   // bash blocks as mid; punches block at their own zone
   const blockZone = isBash ? 'mid' : zone;
 
-  // Extended blade parry — absorbs any hit, costs heavy stamina
+  // Extended blade parry — absorbs any hit, costs light stamina, no stagger
   if (def.atk?.phase === 'extended' && def.parts.swordArm && def.hasSword) {
-    def.stamina  = Math.max(0, def.stamina - 35);
-    atk.stagger  = 1.0;
+    def.stamina  = Math.max(0, def.stamina - 12);
     atk.atk.hit  = true;
     def.hitFlash = 0.06;
     const sX = (atk.x + def.x) / 2;
