@@ -326,7 +326,7 @@ function ln(x1,y1,x2,y2,col,lw=1.5){
   ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
 }
 function lerp(a,b,t){ return a+(b-a)*t; }
-function toRoman(n){ return ['I','II','III'][n-1] || String(n); }
+function toRoman(n){ return ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI'][n-1] || String(n); }
 
 // ─── KNIGHT COLOUR PALETTES ──────────────────────────────────────────────────
 const COLOR_OPTIONS = [
@@ -2364,9 +2364,9 @@ function drawUI() {
   ctx.font = "700 20px 'Cinzel', serif";
   ctx.textAlign = 'center';
   ctx.fillStyle = k1.pal.label;
-  ctx.fillText('♦'.repeat(p1Wins) + '◇'.repeat(2-p1Wins), 180, 32);
+  ctx.fillText('♦'.repeat(p1Wins) + '◇'.repeat(6-p1Wins), 180, 32);
   ctx.fillStyle = k2.pal.label;
-  ctx.fillText('♦'.repeat(p2Wins) + '◇'.repeat(2-p2Wins), 820, 32);
+  ctx.fillText('♦'.repeat(p2Wins) + '◇'.repeat(6-p2Wins), 820, 32);
 
   // Knight colour labels near pips
   ctx.font = "700 11px 'Cinzel', serif";
@@ -2529,7 +2529,7 @@ function loop(ts) {
       processSwordThrows(k1); processSwordThrows(k2);
       if (k1.dead || k2.dead) {
         if (k1.dead) p2Wins++; else p1Wins++;
-        phase  = (p1Wins >= 2 || p2Wins >= 2) ? 'game_over' : 'round_over';
+        phase  = (p1Wins >= 6 || p2Wins >= 6) ? 'game_over' : 'round_over';
         phaseT = 0;
         sfxVictory();
       }
