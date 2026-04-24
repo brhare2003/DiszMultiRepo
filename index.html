@@ -3060,7 +3060,7 @@ function serKnight(k) {
     colorKey:k.colorKey, shieldKey:k.shieldKey, detailKey:k.detailKey,
     plumeKey:k.plumeKey, plumeStyle:k.plumeStyle, helmetStyle:k.helmetStyle,
     colorName:k.colorName,
-    severed:k.severed.map(s=>({
+    severed:k.severed.slice(0,5).map(s=>({
       type:s.type, x:s.x, y:s.y, vx:s.vx, vy:s.vy,
       angle:s.angle, angV:s.angV, facing:s.facing, landed:s.landed, hasSword:s.hasSword,
     })),
@@ -3077,7 +3077,7 @@ function serState() {
       angle:sw.angle, angV:sw.angV, hit:sw.hit, landed:sw.landed,
       owner:sw.owner===k1?1:2,
     })),
-    pts:particles.slice(0,120).map(p=>({
+    pts:particles.slice(0,50).map(p=>({
       x:p.x, y:p.y, vx:p.vx, vy:p.vy,
       life:p.life, maxLife:p.maxLife, color:p.color, size:p.size,
     })),
