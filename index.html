@@ -326,7 +326,7 @@ function ln(x1,y1,x2,y2,col,lw=1.5){
   ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
 }
 function lerp(a,b,t){ return a+(b-a)*t; }
-function toRoman(n){ return ['I','II','III'][n-1] || String(n); }
+function toRoman(n){ return ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI'][n-1] || String(n); }
 
 // ─── KNIGHT COLOUR PALETTES ──────────────────────────────────────────────────
 const COLOR_OPTIONS = [
@@ -1082,7 +1082,7 @@ class Knight {
       if (this.crouching && !this.hasSword) {
         for (let i = flyingSwords.length - 1; i >= 0; i--) {
           const sw = flyingSwords[i];
-          if (sw.owner === this && sw.landed && this.throwCooldown <= 0 && Math.abs(sw.x - this.x) < 60) {  // #10
+          if (sw.landed && this.throwCooldown <= 0 && Math.abs(sw.x - this.x) < 60) {  // #10
             flyingSwords.splice(i, 1);
             this.hasSword = true;
             pickedUp = true;
@@ -1107,6 +1107,7 @@ class Knight {
     const _hasSwordAtk = this.parts.swordArm && this.hasSword;
     const _atkCost     = _hasSwordAtk ? ATK_COST : BASH_COST;
     const _noArms = !this.parts.swordArm && !this.parts.shieldArm;
+    const _noLegs = !this.parts.legL && !this.parts.legR;
     const _oneLeg = (this.parts.legL ? 1 : 0) + (this.parts.legR ? 1 : 0) === 1;
     const _getType = swordType => {
       if (_hasSwordAtk) return swordType;
@@ -1117,6 +1118,7 @@ class Knight {
       }
       // No sword arm — bash with shield arm, or kick/headbutt if no arms at all
       if (!_noArms) return 'bash';
+      if (_noLegs) return null;  // no arms and no legs = can't attack
       return (_oneLeg) ? 'headbutt' : 'kick';
     };
     const _keyMap = { high:c.atkH, mid:c.atkM, low:c.atkL, h1:c.h1, h2:c.h2, h3:c.h3, h4:c.h4, h5:c.h5, bash:c.atkM, punchH:c.atkH, punchM:c.atkM, punchL:c.atkL, kick:c.atkM, headbutt:c.atkM };
@@ -1511,13 +1513,13 @@ class Knight {
     const kickSide = this.parts.legR ? 1 : -1; // prefer right leg
     const t = this.atk.timer;
     if (this.atk.phase === 'windup')
-      return { side: kickSide, uA: lerp(kickSide * 0.06, -0.5, t / WINDUP_T), kA: lerp(0.12, 0.9, t / WINDUP_T) };
+      return { side: kickSide, uA: lerp(kickSide * 0.06, -0.3, t / WINDUP_T), kA: lerp(0.12, -0.7, t / WINDUP_T) };
     if (this.atk.phase === 'active')
-      return { side: kickSide, uA: lerp(-0.5, 1.1, t / ACTIVE_T), kA: lerp(0.9, 0.15, t / ACTIVE_T) };
+      return { side: kickSide, uA: lerp(-0.3, 0.85, t / ACTIVE_T), kA: lerp(-0.7, 0.1, t / ACTIVE_T) };
     if (this.atk.phase === 'extended')
-      return { side: kickSide, uA: 1.1, kA: 0.15 };
+      return { side: kickSide, uA: 0.85, kA: 0.1 };
     if (this.atk.phase === 'recover')
-      return { side: kickSide, uA: lerp(1.1, kickSide * 0.06, t / RECOVER_T), kA: lerp(0.15, 0.12, t / RECOVER_T) };
+      return { side: kickSide, uA: lerp(0.85, kickSide * 0.06, t / RECOVER_T), kA: lerp(0.1, 0.12, t / RECOVER_T) };
     return null;
   }
 
@@ -2094,7 +2096,7 @@ function processHits(atk, def) {
   if (zone === 'punchH') zone = 'high';
   else if (zone === 'punchM') zone = 'mid';
   else if (zone === 'punchL') zone = 'low';
-  else if (zone === 'kick') zone = 'mid';
+  else if (zone === 'kick') zone = 'low';
   else if (zone === 'headbutt') zone = 'high';
 
   // High attacks whiff over crouching defenders
@@ -2111,7 +2113,7 @@ function processHits(atk, def) {
   // Extended blade parry — absorbs any hit, costs heavy stamina
   if (def.atk?.phase === 'extended' && def.parts.swordArm && def.hasSword) {
     def.stamina  = Math.max(0, def.stamina - 35);
-    atk.stagger  = 0.15;
+    atk.stagger  = 1.0;
     atk.atk.hit  = true;
     def.hitFlash = 0.06;
     const sX = (atk.x + def.x) / 2;
@@ -2124,7 +2126,7 @@ function processHits(atk, def) {
   // Zone-based block check
   if (def.blk && def.blk.zone === blockZone) {
     def.stamina  = Math.max(0, def.stamina - 12);
-    atk.stagger  = 0.12;
+    atk.stagger  = 1.0;
     atk.atk.hit  = true;
     def.hitFlash = 0.06;
     def.counterWindow = 0.15;  // #15 brief fast-riposte window after successful block
@@ -2362,9 +2364,9 @@ function drawUI() {
   ctx.font = "700 20px 'Cinzel', serif";
   ctx.textAlign = 'center';
   ctx.fillStyle = k1.pal.label;
-  ctx.fillText('♦'.repeat(p1Wins) + '◇'.repeat(2-p1Wins), 180, 32);
+  ctx.fillText('♦'.repeat(p1Wins) + '◇'.repeat(6-p1Wins), 180, 32);
   ctx.fillStyle = k2.pal.label;
-  ctx.fillText('♦'.repeat(p2Wins) + '◇'.repeat(2-p2Wins), 820, 32);
+  ctx.fillText('♦'.repeat(p2Wins) + '◇'.repeat(6-p2Wins), 820, 32);
 
   // Knight colour labels near pips
   ctx.font = "700 11px 'Cinzel', serif";
@@ -2494,6 +2496,7 @@ function loop(ts) {
   pollGamepads();  // #22
 
   if (netMode === 'join') {
+    if (AC.state !== 'running') AC.resume();
     // Joiner: send keys to host every frame; apply latest received state
     if (conn && conn.open) conn.send({type:'keys', keys:{...keys}});
     if (lastReceivedState) { applyState(lastReceivedState); lastReceivedState = null; }
@@ -2526,7 +2529,7 @@ function loop(ts) {
       processSwordThrows(k1); processSwordThrows(k2);
       if (k1.dead || k2.dead) {
         if (k1.dead) p2Wins++; else p1Wins++;
-        phase  = (p1Wins >= 2 || p2Wins >= 2) ? 'game_over' : 'round_over';
+        phase  = (p1Wins >= 6 || p2Wins >= 6) ? 'game_over' : 'round_over';
         phaseT = 0;
         sfxVictory();
       }
@@ -2608,16 +2611,16 @@ function initColorPicker(containerId, options, defaultKey, onSelect) {
 }
 // Armour pickers
 initColorPicker('sw-p1', COLOR_OPTIONS, 'blue', key => k1.setColor(key));
-initColorPicker('sw-p2', COLOR_OPTIONS, 'red',  key => k2.setColor(key));
+initColorPicker('sw-p2', COLOR_OPTIONS, 'red',  key => { k2.setColor(key); mpSendColorChange('armor', key); });
 // Shield pickers
 initColorPicker('sw-p1-shield', SHIELD_OPTIONS, 'blue', key => k1.setShieldColor(key));
-initColorPicker('sw-p2-shield', SHIELD_OPTIONS, 'red',  key => k2.setShieldColor(key));
+initColorPicker('sw-p2-shield', SHIELD_OPTIONS, 'red',  key => { k2.setShieldColor(key); mpSendColorChange('shield', key); });
 // Shield cross pickers
 initColorPicker('sw-p1-cross', SHIELD_DETAIL_OPTIONS, 'gold', key => k1.setShieldDetail(key));
-initColorPicker('sw-p2-cross', SHIELD_DETAIL_OPTIONS, 'gold', key => k2.setShieldDetail(key));
+initColorPicker('sw-p2-cross', SHIELD_DETAIL_OPTIONS, 'gold', key => { k2.setShieldDetail(key); mpSendColorChange('cross', key); });
 // Plumage pickers
 initColorPicker('sw-p1-plume', PLUME_OPTIONS, 'red', key => k1.setPlumeColor(key));
-initColorPicker('sw-p2-plume', PLUME_OPTIONS, 'red', key => k2.setPlumeColor(key));
+initColorPicker('sw-p2-plume', PLUME_OPTIONS, 'red', key => { k2.setPlumeColor(key); mpSendColorChange('plume', key); });
 
 // Helmet style pickers
 const PLUME_STYLES = [
@@ -2640,7 +2643,22 @@ function initHelmetPicker(containerId, knight) {
   }
 }
 initHelmetPicker('hm-p1', k1);
-initHelmetPicker('hm-p2', k2);
+function initHelmetPickerP2(containerId, knight) {
+  const container = document.getElementById(containerId);
+  for (const hs of HELMET_STYLES) {
+    const btn = document.createElement('div');
+    btn.className = 'cs-hbtn' + (hs.n === 1 ? ' active' : '');
+    btn.textContent = hs.name;
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.cs-hbtn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      knight.setHelmet(hs.n);
+      mpSendColorChange('helmet', hs.n);
+    });
+    container.appendChild(btn);
+  }
+}
+initHelmetPickerP2('hm-p2', k2);
 
 function initPlumePicker(containerId, knight) {
   const container = document.getElementById(containerId);
@@ -2657,7 +2675,22 @@ function initPlumePicker(containerId, knight) {
   }
 }
 initPlumePicker('ps-p1', k1);
-initPlumePicker('ps-p2', k2);
+function initPlumePickerP2(containerId, knight) {
+  const container = document.getElementById(containerId);
+  for (const ps of PLUME_STYLES) {
+    const btn = document.createElement('div');
+    btn.className = 'cs-hbtn' + (ps.n === 1 ? ' active' : '');
+    btn.textContent = ps.name;
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.cs-hbtn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      knight.setPlumeStyle(ps.n);
+      mpSendColorChange('plumeStyle', ps.n);
+    });
+    container.appendChild(btn);
+  }
+}
+initPlumePickerP2('ps-p2', k2);
 
 // ─── POSE EDITOR ─────────────────────────────────────────────────────────────
 // Toggle with backtick (`). Drag fist/head/feet to explore positions.
@@ -3027,7 +3060,7 @@ function serKnight(k) {
     colorKey:k.colorKey, shieldKey:k.shieldKey, detailKey:k.detailKey,
     plumeKey:k.plumeKey, plumeStyle:k.plumeStyle, helmetStyle:k.helmetStyle,
     colorName:k.colorName,
-    severed:k.severed.map(s=>({
+    severed:k.severed.slice(0,5).map(s=>({
       type:s.type, x:s.x, y:s.y, vx:s.vx, vy:s.vy,
       angle:s.angle, angV:s.angV, facing:s.facing, landed:s.landed, hasSword:s.hasSword,
     })),
@@ -3044,7 +3077,7 @@ function serState() {
       angle:sw.angle, angV:sw.angV, hit:sw.hit, landed:sw.landed,
       owner:sw.owner===k1?1:2,
     })),
-    pts:particles.slice(0,120).map(p=>({
+    pts:particles.slice(0,50).map(p=>({
       x:p.x, y:p.y, vx:p.vx, vy:p.vy,
       life:p.life, maxLife:p.maxLife, color:p.color, size:p.size,
     })),
@@ -3113,16 +3146,25 @@ function applyState(s) {
     const d=particles[i], sr=s.pts[i];
     d.x=sr.x; d.y=sr.y; d.life=sr.life; d.maxLife=sr.maxLife; d.color=sr.color; d.size=sr.size;
   }
-  // SFX for phase transitions
-  if (prevPhase!==phase) {
-    if (phase==='fight') sfxFight();
-    else if (phase==='round_over'||phase==='game_over') sfxVictory();
-  }
-  if (phase==='countdown' && prevBeepN!==lastCountdownN) {
-    if (lastCountdownN>0) sfxBeep(lastCountdownN);
-    else if (lastCountdownN===0) sfxFight();
+  // Hide lobby when match actually starts
+  if (prevPhase !== phase && phase !== 'title') hideLobby();
+  // SFX for phase transitions — only when AC is running (avoid dropped events)
+  if (AC.state !== 'running') { AC.resume(); }
+  else {
+    if (prevPhase!==phase) {
+      if (phase==='fight') sfxFight();
+      else if (phase==='round_over'||phase==='game_over') sfxVictory();
+    }
+    if (phase==='countdown' && prevBeepN!==lastCountdownN) {
+      if (lastCountdownN>0) sfxBeep(lastCountdownN);
+      else if (lastCountdownN===0) sfxFight();
+    }
   }
   updateReadyBtnsUI(s.mpP1Ready, s.mpP2Ready);
+}
+
+function mpSendColorChange(part, value) {
+  if (netMode === 'join' && conn && conn.open) conn.send({type:'colorChange', part, value});
 }
 
 // ── Connection handling ───────────────────────────────────────────────────────
@@ -3132,6 +3174,15 @@ function setupConn(c) {
     if      (data.type==='keys')    remoteKeys = data.keys;
     else if (data.type==='state')   lastReceivedState = data.data;
     else if (data.type==='p2Ready') { mpP2Ready=true; updateReadyBtnsUI(mpP1Ready,mpP2Ready); checkBothReady(); }
+    else if (data.type==='colorChange') {
+      const { part, value } = data;
+      if      (part==='armor')       k2.setColor(value);
+      else if (part==='shield')      k2.setShieldColor(value);
+      else if (part==='cross')       k2.setShieldDetail(value);
+      else if (part==='plume')       k2.setPlumeColor(value);
+      else if (part==='helmet')      k2.setHelmet(value);
+      else if (part==='plumeStyle')  k2.setPlumeStyle(value);
+    }
   });
   conn.on('close', () => {
     netMode='local'; hideLobby(); unlockColorPanels();
@@ -3169,6 +3220,7 @@ function initJoin(peerId) {
     const c = peer.connect(peerId, {reliable:false, serialization:'json'});
     setupConn(c);
     c.on('open', () => {
+      if (AC.state !== 'running') AC.resume();
       document.getElementById('mpl-status').innerHTML = 'Connected! Click <b>P2 Not Ready</b> when ready.';
       showReadyBtns();
       lockColorPanels('join');
