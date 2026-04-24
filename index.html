@@ -2494,6 +2494,7 @@ function loop(ts) {
   pollGamepads();  // #22
 
   if (netMode === 'join') {
+    if (AC.state !== 'running') AC.resume();
     // Joiner: send keys to host every frame; apply latest received state
     if (conn && conn.open) conn.send({type:'keys', keys:{...keys}});
     if (lastReceivedState) { applyState(lastReceivedState); lastReceivedState = null; }
@@ -3113,14 +3114,19 @@ function applyState(s) {
     const d=particles[i], sr=s.pts[i];
     d.x=sr.x; d.y=sr.y; d.life=sr.life; d.maxLife=sr.maxLife; d.color=sr.color; d.size=sr.size;
   }
-  // SFX for phase transitions
-  if (prevPhase!==phase) {
-    if (phase==='fight') sfxFight();
-    else if (phase==='round_over'||phase==='game_over') sfxVictory();
-  }
-  if (phase==='countdown' && prevBeepN!==lastCountdownN) {
-    if (lastCountdownN>0) sfxBeep(lastCountdownN);
-    else if (lastCountdownN===0) sfxFight();
+  // Hide lobby when match actually starts
+  if (prevPhase !== phase && phase !== 'title') hideLobby();
+  // SFX for phase transitions — only when AC is running (avoid dropped events)
+  if (AC.state !== 'running') { AC.resume(); }
+  else {
+    if (prevPhase!==phase) {
+      if (phase==='fight') sfxFight();
+      else if (phase==='round_over'||phase==='game_over') sfxVictory();
+    }
+    if (phase==='countdown' && prevBeepN!==lastCountdownN) {
+      if (lastCountdownN>0) sfxBeep(lastCountdownN);
+      else if (lastCountdownN===0) sfxFight();
+    }
   }
   updateReadyBtnsUI(s.mpP1Ready, s.mpP2Ready);
 }
@@ -3169,6 +3175,7 @@ function initJoin(peerId) {
     const c = peer.connect(peerId, {reliable:false, serialization:'json'});
     setupConn(c);
     c.on('open', () => {
+      if (AC.state !== 'running') AC.resume();
       document.getElementById('mpl-status').innerHTML = 'Connected! Click <b>P2 Not Ready</b> when ready.';
       showReadyBtns();
       lockColorPanels('join');
